@@ -1,0 +1,72 @@
+# .gitignore - 自动生成
+
+# ========================================注意========================================
+# 此文件由 init-project 自动生成，包含共性设置和项目特定规则。
+# 如需添加自定义规则，请在文件末尾的「自定义规则」部分添加。
+# ===================================================================================
+
+# === 共性设置（所有项目通用）===
+
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.sublime-*
+*.sublime-workspace
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.crt
+secrets/
+credentials/
+.credentials
+*.log
+*.tmp
+*.temp
+*.bak
+*.cache
+tmp/
+temp/
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# === init-project 生成的基础规则 ===
+
+site/
+_site/
+.docusaurus/
+.cache/
+node_modules/
+*.md.tmp
+
+# === 自定义规则（在下方添加项目特定的忽略规则）===
+
+# Python / skill runtime caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+
+# AI / local execution artifacts
+.parallel_vibe/
+
+# Skill 运行时产物（计划与测试报告，不纳入版本控制）
+skills/*/plans/
+skills/*/tests/
+
+# 示例：
+# local-config.yml
+# *.backup

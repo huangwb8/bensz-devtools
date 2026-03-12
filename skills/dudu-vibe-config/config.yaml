@@ -1,0 +1,31 @@
+# dudu-vibe-config - Single Source of Truth (version + defaults)
+# 说明：本 skill 的脚本不依赖第三方库（如 PyYAML），因此这里保持“扁平 + 仅标量/列表”的 YAML，便于稳定解析。
+
+skill_name: dudu-vibe-config
+skill_version: 0.2.0
+skill_description: "dudu 氛围配置（Vibe）远程桥梁：通过 /vibe/agent/* 在受限范围内管理模板/订阅/报道/域名规则。"
+skill_author: "Bensz Conan"
+
+default_vibe_url: "http://localhost:3001"
+request_timeout_seconds: 15
+heartbeat_interval_seconds: 30
+
+env_url_keys:
+  - DUDU_VIBE_URL
+  - dudu_vibe_url
+  # 兼容本机配置（见 dudu-devtools/.env）
+  - dudu_base_url
+
+env_key_keys:
+  - DUDU_VIBE_KEY
+  - dudu_vibe_key
+  # 兼容历史/本机配置（见 dudu-devtools/.env）
+  - dudu_vibe_api
+
+env_file_candidates:
+  - .env
+  - .env.local
+
+fallback_env_files:
+  - "~/.dudu-vibe.env"
+  - "~/.config/dudu/vibe.env"

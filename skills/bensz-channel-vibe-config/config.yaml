@@ -1,0 +1,31 @@
+# bensz-channel-vibe-config - Single Source of Truth (version + defaults)
+# 说明：本 skill 的脚本不依赖第三方库，使用扁平 YAML 格式。
+
+skill_name: bensz-channel-vibe-config
+skill_version: 1.1.0
+skill_description: "bensz-channel 社区平台远程管理桥梁：通过 /api/vibe/* 在受限范围内管理频道/文章/评论/用户。"
+skill_author: "Bensz Conan"
+
+default_url: "http://localhost:6542"
+request_timeout_seconds: 15
+heartbeat_interval_seconds: 30
+
+env_url_keys:
+  - BENSZ_CHANNEL_URL
+  - bensz_channel_url
+  - bdc_url
+
+env_key_keys:
+  - BENSZ_CHANNEL_KEY
+  - bensz_channel_key
+  - bdc_key
+
+env_file_candidates:
+  - .env
+  - .env.local
+
+env_search_max_depth: 5
+
+fallback_env_files:
+  - "~/.bensz-channel.env"
+  - "~/.config/bensz-channel/devtools.env"
