@@ -67,6 +67,10 @@ __pycache__/
 skills/*/plans/
 skills/*/tests/
 
+
 # 示例：
 # local-config.yml
 # *.backup
+
+# 用户自定义
+*.env
