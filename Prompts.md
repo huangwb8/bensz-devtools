@@ -10,6 +10,19 @@
 
 介绍/Volumes/2T01/Github/skills 的最新release的情况，发到 vibe 频道里。
 
+# dudu
+
+- dudu添加一个模板，内容如下：
+
+```
+模板名：苹果产品爆料
+关注点：apple公司产品的爆料。 要求是各种可靠信源（你调研下哪些可造信源）
+SDK： Claude Code
+Model: claude 4.6 sonnet
+```
+
+- 使用这个模板购建一个订阅
+
 # Others
 
 ---
