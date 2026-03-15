@@ -2,7 +2,9 @@
 
 ---
 
+# 科研
 
+把 /Volumes/2T01/winE/PythonCloud/Agents/pipelines/deep_research/reports/AI-自动科研系统调研这个报告发到 科研 频道上
 
 # skills
 
