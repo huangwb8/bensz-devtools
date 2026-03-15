@@ -38,52 +38,14 @@ metadata:
 
 ## 环境变量
 
-优先从环境变量读取：
+所需变量：
 
 - `BENSZ_CHANNEL_URL`：默认 `http://localhost:6542`
 - `BENSZ_CHANNEL_KEY`：长度需 ≥ 20
 
-兼容别名：
+兼容别名：URL 支持 `bensz_channel_url` / `bdc_url`，KEY 支持 `bensz_channel_key` / `bdc_key`。
 
-- URL：`bensz_channel_url`、`bdc_url`
-- KEY：`bensz_channel_key`、`bdc_key`
-
-### 配置文件搜索顺序（优先级从高到低）
-
-1. **OS 环境变量**
-2. **当前工作目录及父目录的 `.env` / `.env.local`**（自动向上查找，最多 5 层）
-3. **用户主目录 fallback 配置**
-   - `~/.bensz-channel.env`
-   - `~/.config/bensz-channel/devtools.env`
-
-### 仓库内推荐用法
-
-在本仓库根目录工作时，优先显式传入已有配置文件：
-
-```bash
-python3 skills/bensz-channel-vibe-config/scripts/env_check.py --env ./self/remote.env
-python3 skills/bensz-channel-vibe-config/scripts/client.py --env ./self/remote.env ping
-python3 skills/bensz-channel-vibe-config/scripts/client.py --env ./self/remote.env doctor
-```
-
-说明：
-
-- `./self/remote.env` 仅作为现成配置来源使用
-- **严禁修改 `./self` 内的任何文件**
-- 若不在本仓库内，可直接使用 `python3 scripts/env_init.py` 生成自己的 `.env`
-
-### 快速配置
-
-```bash
-# 在当前目录创建 .env
-python3 scripts/env_init.py
-
-# 在用户主目录创建全局配置
-python3 scripts/env_init.py --global
-
-# 指定自定义路径
-python3 scripts/env_init.py --path /path/to/.env
-```
+脚本均支持通过 `--env /path/to/.env` 显式传入 `.env` 文件以完成鉴权。
 
 ## 首次使用流程
 
