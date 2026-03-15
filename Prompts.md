@@ -2,9 +2,28 @@
 
 ---
 
-# 科研
+# Bensz-channel
+
+---
+
+自从上次在频道里更新动态以来， /Volumes/2T01/winE/Starup/bensz-channel 已经迭代了几个release。 请总结最近一些进展。 发布在 开发 频道。
+
+---
 
 把 /Volumes/2T01/winE/PythonCloud/Agents/pipelines/deep_research/reports/AI-自动科研系统调研这个报告发到 科研 频道上
+
+# ChineseResearchLaTeX
+
+---
+
+https://github.com/huangwb8/ChineseResearchLaTeX 的v4.0.0和v3之间有非常大的变动。 请你：
+
+- 仔细读它们之前的commit信息
+- 读 v4.0.0 的release note
+- 写个非常详细的文章介绍变化， 发到 科研 频道上
+- 要求：
+  - 重点突出，有煽动性
+  - 文末要附带项目github地址
 
 # skills
 
