@@ -4,6 +4,18 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-03-16
+
+### Added（新增）
+
+- 新增 `subscriptions update` 命令：支持按 `dudu` 最新源码中的 topic/subscription 字段模型更新已有订阅，可修改 `name/prompt/frequency/tier/style/groupId`、主题 AI（`sdk/model/reasoningEffort/thinkingMode`）以及按用户保存的 `generationAi`
+- 新增生成偏好控制：`subscriptions update` 现支持 `--generation-sdk`、`--generation-model`、`--generation-reasoning-effort`、`--generation-thinking-mode` 与 `--clear-generation-ai`
+
+### Changed（变更）
+
+- `subscriptions create` 现复用统一的频率解析逻辑，对非法自定义 JSON 频率给出更明确的本地报错
+- 更新 `README.md` 与 `SKILL.md`：补充订阅更新示例、字段说明与兼容性策略，明确当前 dudu 服务若尚未提供对应 `/vibe/agent` 路由时会返回结构化 `unsupported_server_capability`，而不会做破坏性重建兜底
+
 ## [0.2.1] - 2026-03-11
 
 ### Added（新增）

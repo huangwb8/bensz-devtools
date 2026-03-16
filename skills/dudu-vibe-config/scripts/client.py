@@ -17,6 +17,12 @@ from _vibe_env import VibeEnv, resolve_vibe_env
 
 
 DRY_RUN = False
+UNSET = object()
+
+SDK_CHOICES = ["codex", "codex_cli", "claude", "claude_code", "zhipu", "ark", "qwen", "deepseek"]
+REASONING_EFFORT_CHOICES = ["none", "low", "medium", "high", "xhigh"]
+THINKING_MODE_CHOICES = ["off", "thinking"]
+TIER_CHOICES = ["basic", "standard", "premium"]
 
 
 class TerminateRequested(Exception):
@@ -278,6 +284,29 @@ def _coerce_list(values: list[str] | None) -> list[str]:
     return out
 
 
+def _parse_frequency_arg(raw: str | None) -> Any | None:
+    if raw is None:
+        return None
+    trimmed = str(raw).strip()
+    if not trimmed:
+        raise SystemExit("Invalid frequency: empty string")
+    if trimmed.startswith("{") and trimmed.endswith("}"):
+        try:
+            return json.loads(trimmed)
+        except json.JSONDecodeError as exc:
+            raise SystemExit(f"Invalid frequency JSON: {exc.msg}") from exc
+    return trimmed
+
+
+def _parse_group_id_update(raw: str | None) -> object:
+    if raw is None:
+        return UNSET
+    trimmed = str(raw).strip()
+    if trimmed.lower() in ("", "null", "none", "default"):
+        return None
+    return _require_uuid(trimmed, name="group id")
+
+
 def _build_ai_payload(
     *,
     sdk: str | None,
@@ -295,6 +324,69 @@ def _build_ai_payload(
     if thinking_mode is not None:
         payload["thinkingMode"] = thinking_mode
     return payload or None
+
+
+def _build_subscription_update_payload(
+    *,
+    name: str | None,
+    prompt: str | None,
+    frequency: str | None,
+    tier: str | None,
+    style: str | None,
+    sdk: str | None,
+    model: str | None,
+    reasoning_effort: str | None,
+    thinking_mode: str | None,
+    generation_sdk: str | None,
+    generation_model: str | None,
+    generation_reasoning_effort: str | None,
+    generation_thinking_mode: str | None,
+    group_id: str | None,
+    clear_generation_ai: bool,
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {}
+    if name is not None:
+        payload["name"] = name
+    if prompt is not None:
+        payload["prompt"] = prompt
+    parsed_frequency = _parse_frequency_arg(frequency)
+    if parsed_frequency is not None:
+        payload["frequency"] = parsed_frequency
+    if tier is not None:
+        payload["tier"] = tier
+    if style is not None:
+        payload["style"] = style
+
+    ai_payload = _build_ai_payload(
+        sdk=sdk,
+        model=model,
+        reasoning_effort=reasoning_effort,
+        thinking_mode=thinking_mode,
+    )
+    if ai_payload is not None:
+        payload["ai"] = ai_payload
+
+    generation_ai_payload = _build_ai_payload(
+        sdk=generation_sdk,
+        model=generation_model,
+        reasoning_effort=generation_reasoning_effort,
+        thinking_mode=generation_thinking_mode,
+    )
+    if generation_ai_payload is not None:
+        payload["generationAi"] = generation_ai_payload
+    elif clear_generation_ai:
+        payload["generationAi"] = None
+
+    parsed_group_id = _parse_group_id_update(group_id)
+    if parsed_group_id is not UNSET:
+        payload["groupId"] = parsed_group_id
+
+    if not payload:
+        raise SystemExit(
+            "No fields to update. Provide at least one of --name/--prompt/--frequency/--tier/--style/"
+            "--sdk/--model/--reasoning-effort/--thinking-mode/--generation-*/--group-id/--clear-generation-ai."
+        )
+    return payload
 
 
 def _unique_merge(existing: list[str], incoming: list[str]) -> list[str]:
@@ -433,14 +525,7 @@ def cmd_subscriptions_create(
     reasoning_effort: str | None,
     thinking_mode: str | None,
 ) -> int:
-    freq: Any = frequency
-    if isinstance(frequency, str):
-        trimmed = frequency.strip()
-        if trimmed.startswith("{") and trimmed.endswith("}"):
-            try:
-                freq = json.loads(trimmed)
-            except json.JSONDecodeError:
-                freq = frequency
+    freq = _parse_frequency_arg(frequency)
     payload: dict[str, Any] = {"name": name, "prompt": prompt, "frequency": freq}
     if tier is not None:
         payload["tier"] = tier
@@ -464,6 +549,87 @@ def cmd_subscriptions_create(
             retries=2,
         )
         _terminate_guard(res)
+        _print_json(_result_payload(res))
+        return 0 if (DRY_RUN or res.status == 200) else 1
+
+
+def cmd_subscriptions_update(
+    vibe: VibeEnv,
+    timeout_seconds: int,
+    topic_id: str,
+    *,
+    name: str | None,
+    prompt: str | None,
+    frequency: str | None,
+    tier: str | None,
+    style: str | None,
+    sdk: str | None,
+    model: str | None,
+    reasoning_effort: str | None,
+    thinking_mode: str | None,
+    generation_sdk: str | None,
+    generation_model: str | None,
+    generation_reasoning_effort: str | None,
+    generation_thinking_mode: str | None,
+    group_id: str | None,
+    clear_generation_ai: bool,
+) -> int:
+    topic_id = _require_uuid(topic_id, name="topic id")
+    payload = _build_subscription_update_payload(
+        name=name,
+        prompt=prompt,
+        frequency=frequency,
+        tier=tier,
+        style=style,
+        sdk=sdk,
+        model=model,
+        reasoning_effort=reasoning_effort,
+        thinking_mode=thinking_mode,
+        generation_sdk=generation_sdk,
+        generation_model=generation_model,
+        generation_reasoning_effort=generation_reasoning_effort,
+        generation_thinking_mode=generation_thinking_mode,
+        group_id=group_id,
+        clear_generation_ai=clear_generation_ai,
+    )
+    with _auto_connection(vibe, enable=True, timeout_seconds=timeout_seconds) as conn_id:
+        route = f"/vibe/agent/subscriptions/{topic_id}"
+        res = _call(
+            "PATCH",
+            _url(vibe, route),
+            headers=_headers(vibe, connection_id=conn_id),
+            json_body=payload,
+            timeout_seconds=timeout_seconds,
+            retries=2,
+        )
+        _terminate_guard(res)
+        if not DRY_RUN and res.status in (404, 405):
+            put_res = _call(
+                "PUT",
+                _url(vibe, route),
+                headers=_headers(vibe, connection_id=conn_id),
+                json_body=payload,
+                timeout_seconds=timeout_seconds,
+                retries=2,
+            )
+            _terminate_guard(put_res)
+            if put_res.status not in (404, 405):
+                res = put_res
+        if not DRY_RUN and res.status in (404, 405):
+            _print_json(
+                {
+                    "error": "unsupported_server_capability",
+                    "capability": "subscriptions_update",
+                    "hint": (
+                        "Current dudu service does not expose /vibe/agent subscription update yet. "
+                        "The client used the latest topic/subscription field model, but refused unsafe recreate/delete fallback."
+                    ),
+                    "attempted_methods": ["PATCH", "PUT"],
+                    "route": route,
+                    **_result_payload(res),
+                }
+            )
+            return 2
         _print_json(_result_payload(res))
         return 0 if (DRY_RUN or res.status == 200) else 1
 
@@ -583,12 +749,29 @@ def main(argv: list[str]) -> int:
     sc.add_argument("--name", required=True)
     sc.add_argument("--prompt", required=True)
     sc.add_argument("--frequency", required=True, help="hourly|daily|weekly or JSON for custom frequency")
-    sc.add_argument("--tier", default=None, choices=["basic", "standard", "premium"])
+    sc.add_argument("--tier", default=None, choices=TIER_CHOICES)
     sc.add_argument("--style", default=None, help="Report style (e.g., deep_research)")
-    sc.add_argument("--sdk", default=None, choices=["codex", "codex_cli", "claude", "claude_code", "zhipu", "ark", "qwen", "deepseek"])
+    sc.add_argument("--sdk", default=None, choices=SDK_CHOICES)
     sc.add_argument("--model", default=None, help="Model override; for CLI providers, empty string means use CLI default model.")
-    sc.add_argument("--reasoning-effort", default=None, choices=["none", "low", "medium", "high", "xhigh"])
-    sc.add_argument("--thinking-mode", default=None, choices=["off", "thinking"])
+    sc.add_argument("--reasoning-effort", default=None, choices=REASONING_EFFORT_CHOICES)
+    sc.add_argument("--thinking-mode", default=None, choices=THINKING_MODE_CHOICES)
+    su = subs_sub.add_parser("update")
+    su.add_argument("--topic-id", required=True)
+    su.add_argument("--name", default=None)
+    su.add_argument("--prompt", default=None)
+    su.add_argument("--frequency", default=None, help="hourly|daily|weekly or JSON for custom frequency")
+    su.add_argument("--tier", default=None, choices=TIER_CHOICES)
+    su.add_argument("--style", default=None, help="Report style (e.g., deep_research)")
+    su.add_argument("--sdk", default=None, choices=SDK_CHOICES)
+    su.add_argument("--model", default=None, help="Model override; empty string means use provider default model when supported.")
+    su.add_argument("--reasoning-effort", default=None, choices=REASONING_EFFORT_CHOICES)
+    su.add_argument("--thinking-mode", default=None, choices=THINKING_MODE_CHOICES)
+    su.add_argument("--generation-sdk", default=None, choices=SDK_CHOICES, help="Per-user default AI config for manual report generation.")
+    su.add_argument("--generation-model", default=None, help="Per-user default generation model override.")
+    su.add_argument("--generation-reasoning-effort", default=None, choices=REASONING_EFFORT_CHOICES)
+    su.add_argument("--generation-thinking-mode", default=None, choices=THINKING_MODE_CHOICES)
+    su.add_argument("--group-id", default=None, help="Set subscription group UUID; use 'default' or 'null' to clear.")
+    su.add_argument("--clear-generation-ai", action="store_true", help="Clear stored per-user generation AI preference.")
     sd = subs_sub.add_parser("delete")
     sd.add_argument("--topic-id", required=True)
 
@@ -596,10 +779,10 @@ def main(argv: list[str]) -> int:
     reports_sub = reports.add_subparsers(dest="reports_cmd", required=True)
     rg = reports_sub.add_parser("generate")
     rg.add_argument("--topic-id", required=True)
-    rg.add_argument("--sdk", default=None, choices=["codex", "codex_cli", "claude", "claude_code", "zhipu", "ark", "qwen", "deepseek"])
+    rg.add_argument("--sdk", default=None, choices=SDK_CHOICES)
     rg.add_argument("--model", default=None, help="Model override; for CLI providers, empty string means use CLI default model.")
-    rg.add_argument("--reasoning-effort", default=None, choices=["none", "low", "medium", "high", "xhigh"])
-    rg.add_argument("--thinking-mode", default=None, choices=["off", "thinking"])
+    rg.add_argument("--reasoning-effort", default=None, choices=REASONING_EFFORT_CHOICES)
+    rg.add_argument("--thinking-mode", default=None, choices=THINKING_MODE_CHOICES)
     rr = reports_sub.add_parser("delete")
     rr.add_argument("--topic-id", required=True)
     rr.add_argument("--report-id", required=True)
@@ -699,6 +882,27 @@ def main(argv: list[str]) -> int:
                     args.model,
                     args.reasoning_effort,
                     args.thinking_mode,
+                )
+            if args.subs_cmd == "update":
+                return cmd_subscriptions_update(
+                    vibe,
+                    timeout_seconds,
+                    args.topic_id,
+                    name=args.name,
+                    prompt=args.prompt,
+                    frequency=args.frequency,
+                    tier=args.tier,
+                    style=args.style,
+                    sdk=args.sdk,
+                    model=args.model,
+                    reasoning_effort=args.reasoning_effort,
+                    thinking_mode=args.thinking_mode,
+                    generation_sdk=args.generation_sdk,
+                    generation_model=args.generation_model,
+                    generation_reasoning_effort=args.generation_reasoning_effort,
+                    generation_thinking_mode=args.generation_thinking_mode,
+                    group_id=args.group_id,
+                    clear_generation_ai=bool(args.clear_generation_ai),
                 )
             if args.subs_cmd == "delete":
                 return cmd_subscriptions_delete(vibe, timeout_seconds, args.topic_id)

@@ -6,7 +6,7 @@
 
 - 批量维护域名规则（allowlist/blocklist/keywords）
 - 创建/删除模板（Templates）
-- 创建/退订订阅（Subscriptions），并可显式指定 `sdk/model/reasoning/thinking`
+- 创建/更新/退订订阅（Subscriptions），并可显式指定主题 AI 与按用户存储的生成偏好
 - 触发生成报道、删除报道（Reports），并可在生成时临时覆盖 AI 配置
 
 ## 依赖与约束
@@ -63,6 +63,8 @@ python3 scripts/client.py doctor --watch-seconds 120
 
 说明：`doctor`/`doctor --watch-seconds` 输出为 JSON（或多条 JSON），便于在工具调用中稳定解析；若 Web 端触发终止，会输出 `terminate_requested=true` 并以退出码 0 结束。若你的订阅走 `claude_code` / `codex_cli`，宿主环境仍需在 dudu 主项目侧启用对应 CLI provider / MCP 能力，否则服务端会按主项目当前策略回退。
 
+兼容性提醒：`subscriptions update` 的字段模型已按 `dudu` 最新 `topics/:id` + `topics/:id/subscribe` 语义对齐，但当前最新 `dudu` 源码里的 `/vibe/agent/*` 仍未提供订阅更新路由。为避免“删除重建订阅”导致 topic/report 历史丢失，本 skill 遇到旧服务时会返回结构化 `unsupported_server_capability`，而不会做破坏性兜底。
+
 ```bash
 # 域名规则（读取）
 python3 scripts/client.py domains get
@@ -83,6 +85,9 @@ python3 scripts/client.py templates delete --id <template-id>
 # 订阅
 python3 scripts/client.py subscriptions create --name "订阅名" --prompt "订阅提示词" --frequency daily
 python3 scripts/client.py subscriptions create --name "开发工具追踪" --prompt "跟踪 Claude Code / Codex CLI / MCP 更新" --frequency daily --sdk claude_code --reasoning-effort medium --thinking-mode thinking
+python3 scripts/client.py subscriptions update --topic-id <topic-uuid> --sdk codex_cli --model "" --reasoning-effort high
+python3 scripts/client.py subscriptions update --topic-id <topic-uuid> --tier premium --style deep_research --generation-sdk claude --generation-thinking-mode thinking
+python3 scripts/client.py --dry-run subscriptions update --topic-id <topic-uuid> --prompt '"agentic coding" OR codex OR "claude code"' --frequency '{"type":"custom","interval_seconds":21600}'
 python3 scripts/client.py subscriptions delete --topic-id <topic-uuid>
 
 # 报道
@@ -95,6 +100,18 @@ python3 scripts/client.py reports delete --topic-id <topic-uuid> --report-id <re
 
 - **复杂配置编排/多步变更**：选择支持强工具调用与长上下文的“高可靠推理模型”（能在多轮 API 操作中保持一致性与安全边界）。
 - **单条命令执行/核对结果**：选择更快的“工具型模型”即可（关键是严格按 `scripts/client.py` 输出做决定）。
+
+## 订阅更新字段说明
+
+- 主题级字段：`--name`、`--prompt`、`--frequency`、`--sdk`、`--model`、`--reasoning-effort`、`--thinking-mode`
+- 订阅偏好字段：`--tier`、`--style`、`--group-id`
+- 手动“生成报道”默认 AI：`--generation-sdk`、`--generation-model`、`--generation-reasoning-effort`、`--generation-thinking-mode`
+- 清空生成偏好：`--clear-generation-ai`
+
+说明：
+- `--model ""` 仍表示“使用 provider / CLI 默认模型”。
+- `--group-id default` 或 `--group-id null` 会清空分组，回到默认组。
+- `--frequency` 同时支持 `hourly|daily|weekly` 和 `{"type":"custom","interval_seconds":...}`。
 
 ## 安全建议
 

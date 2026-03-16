@@ -24,7 +24,7 @@ metadata:
 把“人类的配置意图”稳定地翻译成对 `dudu` **Vibe Agent API** 的一组受限操作（仅 `/vibe/agent/*`），以支持远程优化：
 
 - 模板：创建/删除
-- 订阅：创建/退订（支持显式透传 `ai.sdk/model/reasoningEffort/thinkingMode`）
+- 订阅：创建/更新/退订（支持显式透传主题 `ai.*` 与按用户保存的 `generationAi.*`）
 - 报道：触发生成/删除（支持生成时临时覆盖 AI 配置）
 - 域名规则：读取/更新（allowlist/blocklist/keywords）
 
@@ -81,9 +81,18 @@ python3 scripts/client.py --dry-run domains set --reset --allowlist example.com
 - “屏蔽 bad.com”：`domains set --blocklist bad.com`
 - “添加关键词过滤 X”：`domains set --keywords X`
 - “新增一个每日订阅”：`subscriptions create --frequency daily`
+- “把已有订阅切到 Codex CLI + 更高推理强度”：`subscriptions update --topic-id ... --sdk codex_cli --reasoning-effort high`
+- “把手动生成默认模型改成 Claude，并清空分组”：`subscriptions update --topic-id ... --generation-sdk claude --group-id default`
 - “用 Claude Code 建一个开发工具类订阅”：`subscriptions create --frequency daily --sdk claude_code --thinking-mode thinking`
 - “触发某个订阅生成新报道”：`reports generate --topic-id ...`
 - “这次生成临时改用 Codex CLI 高推理”：`reports generate --topic-id ... --sdk codex_cli --reasoning-effort high`
+
+## 订阅更新兼容策略
+
+- `subscriptions update` 的参数语义对齐 `dudu` 最新源码中的 `PUT /topics/:id` 与 `POST /topics/:id/subscribe`
+- 客户端会优先尝试 `PATCH /vibe/agent/subscriptions/:topicId`，再回退尝试 `PUT /vibe/agent/subscriptions/:topicId`
+- 若当前 dudu 服务仍未暴露该能力，客户端会输出结构化 `unsupported_server_capability`
+- **不会** 自动走“删除旧订阅 + 新建订阅”的危险兜底，因为那会改变 topic id，并可能丢失历史报道/进度/引用关系
 
 ## 订阅提示词策略
 
