@@ -18,6 +18,14 @@
 
 ---
 
+https://github.com/huangwb8/ChineseResearchLaTeX 今天有不少release、commit。 请写个非常详细的文章介绍主要的改进， 发到 bensz channel 的 科研 频道上。 要求：
+
+- 重点突出，有煽动性
+- 较为详尽，让读者能切实地感受到项目的变化
+- 文末要附带项目github地址
+
+---
+
 https://github.com/huangwb8/ChineseResearchLaTeX 的v4.0.0和v3之间有非常大的变动。 请你：
 
 - 仔细读它们之间的commit信息
