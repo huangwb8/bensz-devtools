@@ -237,15 +237,7 @@ def cmd_channels_delete(env: BdcEnv, timeout_seconds: int, channel_id: str) -> i
 # ─── Articles ─────────────────────────────────────────────────────────────────
 
 def cmd_articles_list(env: BdcEnv, timeout_seconds: int, channel_id: str | None, published: str | None) -> int:
-    res = _call("GET", _url_with_query(env, "/api/vibe/articles", {
-                    "channel_id": channel_id,
-                    "published": published,
-                    "pinned": None,
-                    "featured": None,
-                }), headers=_headers(env),
-                timeout_seconds=timeout_seconds, retries=2)
-    _print_json(_result_payload(res))
-    return 0 if (DRY_RUN or res.status == 200) else 1
+    return cmd_articles_list_with_filters(env, timeout_seconds, channel_id, published, None, None, None)
 
 
 def cmd_articles_list_with_filters(
@@ -255,12 +247,14 @@ def cmd_articles_list_with_filters(
     published: str | None,
     pinned: str | None,
     featured: str | None,
+    tag_id: int | None,
 ) -> int:
     res = _call("GET", _url_with_query(env, "/api/vibe/articles", {
                     "channel_id": channel_id,
                     "published": published,
                     "pinned": pinned,
                     "featured": featured,
+                    "tag_id": tag_id,
                 }), headers=_headers(env),
                 timeout_seconds=timeout_seconds, retries=2)
     _print_json(_result_payload(res))
@@ -277,7 +271,7 @@ def cmd_articles_show(env: BdcEnv, timeout_seconds: int, article_id: str) -> int
 def cmd_articles_create(env: BdcEnv, timeout_seconds: int, channel_id: str, title: str, body: str,
                         published: bool, excerpt: str | None, cover_gradient: str | None,
                         slug: str | None, published_at: str | None,
-                        is_pinned: bool, is_featured: bool) -> int:
+                        is_pinned: bool, is_featured: bool, tag_ids: list[int] | None) -> int:
     payload: dict[str, Any] = {
         "channel_id": int(channel_id),
         "title": title,
@@ -294,6 +288,8 @@ def cmd_articles_create(env: BdcEnv, timeout_seconds: int, channel_id: str, titl
         payload["cover_gradient"] = cover_gradient
     if published_at:
         payload["published_at"] = published_at
+    if tag_ids:
+        payload["tag_ids"] = [int(tag_id) for tag_id in tag_ids]
     with _auto_connection(env, timeout_seconds=timeout_seconds) as conn_id:
         res = _call("POST", _url(env, "/api/vibe/articles"),
                     headers=_headers(env, connection_id=conn_id),
@@ -306,6 +302,8 @@ def cmd_articles_update(env: BdcEnv, timeout_seconds: int, article_id: str, **kw
     body = {k: v for k, v in kwargs.items() if v is not None}
     if "channel_id" in body:
         body["channel_id"] = int(body["channel_id"])
+    if "tag_ids" in body:
+        body["tag_ids"] = [int(tag_id) for tag_id in body["tag_ids"]]
     if not body:
         raise SystemExit("No fields to update.")
     with _auto_connection(env, timeout_seconds=timeout_seconds) as conn_id:
@@ -319,6 +317,56 @@ def cmd_articles_update(env: BdcEnv, timeout_seconds: int, article_id: str, **kw
 def cmd_articles_delete(env: BdcEnv, timeout_seconds: int, article_id: str) -> int:
     with _auto_connection(env, timeout_seconds=timeout_seconds) as conn_id:
         res = _call("DELETE", _url(env, f"/api/vibe/articles/{article_id}"),
+                    headers=_headers(env, connection_id=conn_id),
+                    timeout_seconds=timeout_seconds, retries=2)
+        _print_json(_result_payload(res))
+        return 0 if (DRY_RUN or res.status == 200) else 1
+
+
+# ─── Tags ─────────────────────────────────────────────────────────────────────
+
+def cmd_tags_list(env: BdcEnv, timeout_seconds: int) -> int:
+    res = _call("GET", _url(env, "/api/vibe/tags"), headers=_headers(env),
+                timeout_seconds=timeout_seconds, retries=2)
+    _print_json(_result_payload(res))
+    return 0 if (DRY_RUN or res.status == 200) else 1
+
+
+def cmd_tags_create(
+    env: BdcEnv,
+    timeout_seconds: int,
+    name: str,
+    slug: str | None,
+    description: str | None,
+) -> int:
+    body: dict[str, Any] = {"name": name}
+    if slug:
+        body["slug"] = slug
+    if description:
+        body["description"] = description
+    with _auto_connection(env, timeout_seconds=timeout_seconds) as conn_id:
+        res = _call("POST", _url(env, "/api/vibe/tags"),
+                    headers=_headers(env, connection_id=conn_id),
+                    json_body=body, timeout_seconds=timeout_seconds, retries=2)
+        _print_json(_result_payload(res))
+        return 0 if (DRY_RUN or res.status == 201) else 1
+
+
+def cmd_tags_update(env: BdcEnv, timeout_seconds: int, tag_id: str, **kwargs: Any) -> int:
+    body = {k: v for k, v in kwargs.items() if v is not None}
+    if not body:
+        raise SystemExit("No fields to update.")
+    with _auto_connection(env, timeout_seconds=timeout_seconds) as conn_id:
+        res = _call("PUT", _url(env, f"/api/vibe/tags/{tag_id}"),
+                    headers=_headers(env, connection_id=conn_id),
+                    json_body=body, timeout_seconds=timeout_seconds, retries=2)
+        _print_json(_result_payload(res))
+        return 0 if (DRY_RUN or res.status == 200) else 1
+
+
+def cmd_tags_delete(env: BdcEnv, timeout_seconds: int, tag_id: str) -> int:
+    with _auto_connection(env, timeout_seconds=timeout_seconds) as conn_id:
+        res = _call("DELETE", _url(env, f"/api/vibe/tags/{tag_id}"),
                     headers=_headers(env, connection_id=conn_id),
                     timeout_seconds=timeout_seconds, retries=2)
         _print_json(_result_payload(res))
@@ -393,7 +441,7 @@ def cmd_users_delete(env: BdcEnv, timeout_seconds: int, user_id: str) -> int:
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(
         prog="client.py",
-        description="bensz-channel DevTools 客户端。通过 API 密钥管理频道/文章/评论/用户。"
+        description="bensz-channel DevTools 客户端。通过 API 密钥管理频道、标签、文章、评论和用户。"
     )
     parser.add_argument("--env", type=str, default=None, help="指定 .env 配置文件路径。")
     parser.add_argument("--timeout", type=int, default=None, help="请求超时秒数。")
@@ -437,6 +485,7 @@ def main(argv: list[str]) -> int:
     ar_l.add_argument("--published", default=None, choices=["true", "false"])
     ar_l.add_argument("--pinned", default=None, choices=["true", "false"])
     ar_l.add_argument("--featured", default=None, choices=["true", "false"])
+    ar_l.add_argument("--tag-id", type=int, default=None, help="按标签数值 ID 过滤")
     ar_s = ar_sub.add_parser("show", help="查看单篇文章")
     ar_s.add_argument("--id", required=True, help="文章标识（数值 ID / public_id / slug）")
     ar_c = ar_sub.add_parser("create", help="发布文章")
@@ -450,6 +499,7 @@ def main(argv: list[str]) -> int:
     ar_c.add_argument("--published-at", default=None, help="发布时间（ISO 8601）")
     ar_c.add_argument("--pinned", action="store_true", default=False, help="创建后设为置顶")
     ar_c.add_argument("--featured", action="store_true", default=False, help="创建后设为精华")
+    ar_c.add_argument("--tag-id", action="append", type=int, default=None, help="关联标签数值 ID；可重复传入")
     ar_u = ar_sub.add_parser("update", help="更新文章")
     ar_u.add_argument("--id", required=True, help="文章标识（数值 ID / public_id / slug）")
     ar_u.add_argument("--channel-id", default=None)
@@ -462,8 +512,26 @@ def main(argv: list[str]) -> int:
     ar_u.add_argument("--featured", default=None, choices=["true", "false"])
     ar_u.add_argument("--excerpt", default=None)
     ar_u.add_argument("--cover-gradient", default=None)
+    ar_u.add_argument("--tag-id", action="append", type=int, default=None, help="覆盖文章标签；可重复传入数值 ID")
+    ar_u.add_argument("--clear-tags", action="store_true", default=False, help="清空文章已有标签")
     ar_d = ar_sub.add_parser("delete", help="删除文章")
     ar_d.add_argument("--id", required=True, help="文章标识（数值 ID / public_id / slug）")
+
+    # tags
+    tg = sub.add_parser("tags", help="标签管理")
+    tg_sub = tg.add_subparsers(dest="tg_cmd", required=True)
+    tg_sub.add_parser("list", help="列出所有标签")
+    tg_c = tg_sub.add_parser("create", help="新建标签")
+    tg_c.add_argument("--name", required=True, help="标签名称")
+    tg_c.add_argument("--slug", default=None)
+    tg_c.add_argument("--description", default=None)
+    tg_u = tg_sub.add_parser("update", help="更新标签")
+    tg_u.add_argument("--id", required=True, help="标签标识（数值 ID / public_id / slug）")
+    tg_u.add_argument("--name", default=None)
+    tg_u.add_argument("--slug", default=None)
+    tg_u.add_argument("--description", default=None)
+    tg_d = tg_sub.add_parser("delete", help="删除标签")
+    tg_d.add_argument("--id", required=True, help="标签标识（数值 ID / public_id / slug）")
 
     # comments
     co = sub.add_parser("comments", help="评论管理")
@@ -529,26 +597,41 @@ def main(argv: list[str]) -> int:
     if args.cmd == "articles":
         if args.ar_cmd == "list":
             return cmd_articles_list_with_filters(env, timeout_seconds, args.channel_id, args.published,
-                                                  args.pinned, args.featured)
+                                                  args.pinned, args.featured, args.tag_id)
         if args.ar_cmd == "show":
             return cmd_articles_show(env, timeout_seconds, args.id)
         if args.ar_cmd == "create":
             return cmd_articles_create(env, timeout_seconds, args.channel_id, args.title, args.body,
                                        args.published, args.excerpt, args.cover_gradient,
-                                       args.slug, args.published_at, args.pinned, args.featured)
+                                       args.slug, args.published_at, args.pinned, args.featured,
+                                       args.tag_id)
         if args.ar_cmd == "update":
+            if args.clear_tags and args.tag_id:
+                raise SystemExit("--clear-tags cannot be combined with --tag-id.")
             body_val = args.body if hasattr(args, "body") else None
             pub_val = _parse_optional_bool(args.published)
             pinned_val = _parse_optional_bool(args.pinned)
             featured_val = _parse_optional_bool(args.featured)
+            tag_ids = [] if args.clear_tags else args.tag_id
             return cmd_articles_update(env, timeout_seconds, args.id,
                                        channel_id=args.channel_id, title=args.title, slug=args.slug,
                                        markdown_body=body_val, is_published=pub_val,
                                        published_at=args.published_at, is_pinned=pinned_val,
                                        is_featured=featured_val, excerpt=args.excerpt,
-                                       cover_gradient=args.cover_gradient)
+                                       cover_gradient=args.cover_gradient, tag_ids=tag_ids)
         if args.ar_cmd == "delete":
             return cmd_articles_delete(env, timeout_seconds, args.id)
+
+    if args.cmd == "tags":
+        if args.tg_cmd == "list":
+            return cmd_tags_list(env, timeout_seconds)
+        if args.tg_cmd == "create":
+            return cmd_tags_create(env, timeout_seconds, args.name, args.slug, args.description)
+        if args.tg_cmd == "update":
+            return cmd_tags_update(env, timeout_seconds, args.id,
+                                   name=args.name, slug=args.slug, description=args.description)
+        if args.tg_cmd == "delete":
+            return cmd_tags_delete(env, timeout_seconds, args.id)
 
     if args.cmd == "comments":
         if args.co_cmd == "list":

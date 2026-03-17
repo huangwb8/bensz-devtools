@@ -5,7 +5,7 @@
 当前仓库已经收录两个同类但面向不同产品的 skill：
 
 - `dudu-vibe-config`：通过 `dudu` 的 `/vibe/agent/*` 接口管理模板、订阅、报道和域名规则
-- `bensz-channel-vibe-config`：通过 `bensz-channel` 的 `/api/vibe/*` 接口管理频道、文章、评论和用户
+- `bensz-channel-vibe-config`：通过 `bensz-channel` 的 `/api/vibe/*` 接口管理频道、标签、文章、评论和用户
 
 这类 skill 的共同点是：都通过受限 API 把“人类意图”翻译成远程配置或远程管理动作，不直接修改对应产品的软件源代码。
 
@@ -26,9 +26,9 @@
 
 ### `skills/bensz-channel-vibe-config`
 
-- 来源：`/Volumes/2T01/Github/bensz-channel`
+- 来源：`/Volumes/2T01/winE/Starup/bensz-channel`
 - 目标系统：`bensz-channel`
-- 能力范围：频道、文章、评论、用户
+- 能力范围：频道、标签、文章、评论、用户
 - 安全边界：仅访问 `/api/vibe/*`
 
 更详细的入口说明见 [skills/README.md](skills/README.md)。

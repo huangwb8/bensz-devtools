@@ -8,6 +8,12 @@
 
 - 将 `skills/bensz-channel-devtools` 重命名为 `skills/bensz-channel-vibe-config`
 - 同步更新仓库入口文档、skill 元数据、脚本中的默认 skill 名称与命令示例
+- 将 `bensz-channel-vibe-config` 的能力说明更新为“频道、标签、文章、评论、用户”，并同步来源仓库路径到 `/Volumes/2T01/winE/Starup/bensz-channel`
+- 调整 `.gitignore`：不再忽略整个 `skills/*/plans/` 与 `skills/*/tests/`，改为只忽略测试运行产物，确保每个 skill 的计划与测试沉淀都能被版本控制追踪
+
+### Added
+
+- 为 `skills/bensz-channel-vibe-config` 新增 tags 管理能力、文章标签关联/筛选/清空能力，以及自动化 CLI 回归测试
 
 ## [1.0.0] - 2026-03-12
 

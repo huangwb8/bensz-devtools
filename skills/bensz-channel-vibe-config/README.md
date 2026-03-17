@@ -55,7 +55,9 @@ python3 scripts/client.py doctor
 ## 标识规则
 
 - 频道：`--id` 支持 **数值 ID / public_id / slug**
+- 标签：`--id` 支持 **数值 ID / public_id / slug**
 - 文章：`--id` 支持 **数值 ID / public_id / slug**
+- 文章标签：`articles list --tag-id`、`articles create/update --tag-id` 使用 **标签数值 ID**
 - 评论：`--id` 使用 **数值 ID**
 - 用户：`--id` 使用 **数值 ID**
 
@@ -71,12 +73,15 @@ python3 scripts/client.py channels delete --id 1
 # 文章管理
 python3 scripts/client.py articles list
 python3 scripts/client.py articles list --channel-id 1 --published true --featured true
+python3 scripts/client.py articles list --tag-id 2 --published true
 python3 scripts/client.py articles show --id 42
 python3 scripts/client.py articles create \
   --channel-id 1 \
   --title "Hello World" \
   --body "这是正文内容" \
   --published \
+  --tag-id 2 \
+  --tag-id 7 \
   --pinned
 python3 scripts/client.py articles create \
   --channel-id 1 \
@@ -84,8 +89,15 @@ python3 scripts/client.py articles create \
   --body "正文" \
   --published \
   --featured
-python3 scripts/client.py articles update --id 42 --channel-id 3 --title "新标题" --featured true
+python3 scripts/client.py articles update --id 42 --channel-id 3 --title "新标题" --featured true --tag-id 2 --tag-id 7
+python3 scripts/client.py articles update --id 42 --clear-tags
 python3 scripts/client.py articles delete --id 42
+
+# 标签管理
+python3 scripts/client.py tags list
+python3 scripts/client.py tags create --name Laravel --slug laravel --description "Laravel 相关文章"
+python3 scripts/client.py tags update --id laravel --name "Laravel 12"
+python3 scripts/client.py tags delete --id laravel
 
 # 评论管理
 python3 scripts/client.py comments list
@@ -108,6 +120,7 @@ python3 scripts/client.py --env /path/to/.env channels list
 - 只允许调用 `/api/vibe/*` 端点
 - 不修改软件源代码，只操作数据库内容
 - 精华频道不能作为文章主频道
+- 文章标签关联通过 `tag_ids` 数组完成，需传标签数值 ID
 - 用户至少保留一个联系方式（邮箱或手机号）
 - 最后一位管理员不可降级
 - 管理员账号不可通过 DevTools 删除

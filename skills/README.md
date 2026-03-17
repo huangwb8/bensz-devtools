@@ -6,10 +6,10 @@
 
 ### `bensz-channel-vibe-config`
 
-- 来源仓库：`/Volumes/2T01/Github/bensz-channel`
+- 来源仓库：`/Volumes/2T01/winE/Starup/bensz-channel`
 - 目标系统：`bensz-channel`
 - 受限接口：`/api/vibe/*`
-- 主要对象：频道、文章、评论、用户
+- 主要对象：频道、标签、文章、评论、用户
 
 ### `dudu-vibe-config`
 

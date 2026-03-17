@@ -10,6 +10,21 @@ The format is based on Keep a Changelog.
 - 将 skill 名称从 `bensz-channel-devtools` 调整为 `bensz-channel-vibe-config`。
 - 同步更新目录名、文档标题、配置元数据、CLI 默认标识与命令示例。
 
+## [1.2.0] - 2026-03-18
+
+### Added（新增）
+- 新增 `tags list/create/update/delete` CLI，完整对齐上游 `GET/POST/PUT/DELETE /api/vibe/tags`。
+- 新增文章标签能力：`articles list` 支持 `--tag-id` 过滤，`articles create/update` 支持重复传入 `--tag-id` 写入 `tag_ids`。
+- 新增文章标签清空能力：`articles update --clear-tags` 可显式发送空数组，移除已有标签关联。
+- 新增自动化 CLI 回归测试 `tests/test_client_cli.py`，覆盖 tags 子命令、文章标签过滤/关联/清空以及既有关键能力。
+
+### Changed（变更）
+- 更新 `SKILL.md` 与 `README.md`，补齐标签管理、文章标签关联、标签筛选和标识规则说明。
+- 更新 `config.yaml` 版本号到 `1.2.0`，并把 skill 描述扩展到“频道、标签、文章、评论和用户”。
+
+### Fixed（修复）
+- 修复聚合 skill 与上游 `bensz-channel` 2026-03-18 版 Vibe API 的能力漂移问题，避免出现“服务端已支持标签，但 CLI 无法调用”的错位。
+
 ## [1.1.0] - 2026-03-10
 
 ### Added（新增）

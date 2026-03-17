@@ -1,6 +1,7 @@
 # General
 
 - 使用 [$awesome-code](/Users/bensz/.codex/skills/awesome-code/SKILL.md) 辅助规划、优化。所有问题都要解决。 如果工作时有疑问，或者有更好的方案，自己选个最优方案优化，不要问我。不要破坏其它功能。要保证最终成品能正常、稳定、高效地工作。 
+- 根据目前 /Volumes/2T01/winE/Starup/bensz-channel 项目的最新代码， skills/bensz-channel-vibe-config 要不要调整下？ 使用 awesome-code skill 辅助规划、优化。所有问题都要解决。 如果工作时有疑问，或者有更好的方案，自己选个最优方案优化，不要问我。不要破坏其它功能。要保证最终成品能正常、稳定、高效地工作。
 
 ---
 
@@ -18,7 +19,7 @@
 
 ---
 
-https://github.com/huangwb8/ChineseResearchLaTeX 今天有不少release、commit。 请写个非常详细的文章介绍主要的改进， 发到 bensz channel 的 科研 频道上。 要求：
+/Volumes/2T01/Github/ChineseResearchLaTeX 今天有不少release、commit。 请写个非常详细的文章介绍主要的改进， 发到 bensz channel 的 科研 频道上。 要求：
 
 - 重点突出，有煽动性
 - 较为详尽，让读者能切实地感受到项目的变化

@@ -1,6 +1,6 @@
 ---
 name: bensz-channel-vibe-config
-description: bensz-channel 社区平台 DevTools：通过 API 密钥让 Vibe Coding 工具（Claude Code、Codex 等）远程管理频道、文章、评论和用户，操作数据库层面配置，不修改软件源代码。
+description: bensz-channel 社区平台 DevTools：通过 API 密钥让 Vibe Coding 工具（Claude Code、Codex 等）远程管理频道、标签、文章、评论和用户，操作数据库层面配置，不修改软件源代码。
 metadata:
   author: Bensz Conan
   short-description: bensz-channel 远程管理桥梁（DevTools API）
@@ -9,6 +9,7 @@ metadata:
     - devtools
     - 远程配置
     - channels
+    - tags
     - articles
     - comments
     - users
@@ -23,7 +24,8 @@ metadata:
 把“人类的管理意图”稳定翻译为对 `bensz-channel` **DevTools API** 的一组受限操作：
 
 - 频道：列表 / 新增 / 修改 / 删除 / 顶栏显隐
-- 文章：列表 / 查看 / 发布 / 修改 / 删除 / 发布状态 / 置顶 / 精华
+- 标签：列表 / 新增 / 修改 / 删除
+- 文章：列表 / 查看 / 发布 / 修改 / 删除 / 发布状态 / 置顶 / 精华 / 标签关联
 - 评论：列表 / 修改可见性 / 删除
 - 用户：列表 / 修改资料和角色 / 删除普通用户
 
@@ -82,7 +84,9 @@ metadata:
 ## 标识规则
 
 - `channels update/show/delete`：支持 **数值 ID / `public_id` / `slug`**
+- `tags update/delete`：支持 **数值 ID / `public_id` / `slug`**
 - `articles show/update/delete`：支持 **数值 ID / `public_id` / `slug`**
+- `articles list --tag-id`、`articles create/update --tag-id`：使用 **标签数值 ID**
 - `comments update/delete`：使用 **数值 ID**
 - `users update/delete`：使用 **数值 ID**
 
@@ -93,10 +97,16 @@ metadata:
 | 查看所有频道 | `channels list` |
 | 新增频道并隐藏顶栏入口 | `channels create --name 公告 --icon 📢 --accent-color '#3b82f6' --show-in-top-nav false` |
 | 修改频道顶栏显隐 | `channels update --id 1 --show-in-top-nav true` |
+| 查看所有标签 | `tags list` |
+| 新增标签 | `tags create --name Laravel --slug laravel --description 'Laravel 相关文章'` |
 | 查看文章列表 | `articles list --published true --featured true` |
+| 按标签筛选文章 | `articles list --tag-id 2 --published true` |
+| 发布文章并绑定标签 | `articles create --channel-id 1 --title 标题 --body 正文 --published --tag-id 2 --tag-id 5` |
 | 发布文章并置顶 | `articles create --channel-id 1 --title 标题 --body 正文 --published --pinned` |
 | 发布文章并设为精华 | `articles create --channel-id 1 --title 标题 --body 正文 --published --featured` |
 | 将文章切换频道 | `articles update --id 42 --channel-id 3` |
+| 覆盖文章标签 | `articles update --id 42 --tag-id 2 --tag-id 7` |
+| 清空文章标签 | `articles update --id 42 --clear-tags` |
 | 隐藏评论 | `comments update --id 42 --visible false` |
 | 删除评论 | `comments delete --id 42` |
 | 查看用户 | `users list --role member` |
@@ -125,7 +135,11 @@ metadata:
 | POST | `/channels` | 创建频道 |
 | PUT | `/channels/{channel}` | 更新频道 |
 | DELETE | `/channels/{channel}` | 删除频道 |
-| GET | `/articles` | 文章列表（支持 `channel_id` / `published` / `pinned` / `featured` 过滤） |
+| GET | `/tags` | 标签列表 |
+| POST | `/tags` | 创建标签 |
+| PUT | `/tags/{tag}` | 更新标签 |
+| DELETE | `/tags/{tag}` | 删除标签 |
+| GET | `/articles` | 文章列表（支持 `channel_id` / `published` / `pinned` / `featured` / `tag_id` 过滤） |
 | GET | `/articles/{article}` | 文章详情 |
 | POST | `/articles` | 创建文章 |
 | PUT | `/articles/{article}` | 更新文章 |
