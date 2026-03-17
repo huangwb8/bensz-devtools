@@ -53,11 +53,11 @@
 - `README.md`：面向人类的使用说明
 - `config.yaml`：skill 的单一配置来源
 - `scripts/`：可执行脚本和最小依赖的实现
-- `docs/`：补充说明文档
-- `plans/`：设计或迭代计划
-- `tests/`：测试计划、报告和必要的验证工件
+- `docs/`：补充说明文档（推荐）
+- `plans/`：设计或迭代计划（推荐）
+- `tests/`：测试计划、报告和必要的验证工件（推荐）
 
-允许保留产品特有差异，但不应引入无关缓存文件。
+其中 `SKILL.md`、`README.md`、`config.yaml`、`scripts/` 为核心资产；`docs/`、`plans/`、`tests/` 一旦存在，应尽量保留并纳入版本控制。允许保留产品特有差异，但不应引入无关缓存文件。
 
 ## 工程原则
 
@@ -85,7 +85,7 @@
 ## 变更边界
 
 - 默认只修改当前仓库中的文件
-- 除非用户明确要求，不修改 `/Volumes/2T01/winE/Starup/dudu-devtools` 或 `/Volumes/2T01/Github/bensz-channel` 的源文件
+- 除非用户明确要求，不修改 `/Volumes/2T01/winE/Starup/dudu` 或 `/Volumes/2T01/winE/Starup/bensz-channel` 的源文件
 - 不擅自重命名现有 skill；如果要统一命名，先说明兼容性影响
 - 不删除历史计划、测试和说明，除非它们是明显的缓存或垃圾文件
 
@@ -100,7 +100,7 @@
 当迁移或新增一个 bridge skill 时，优先遵循以下约定：
 
 1. 保留来源 skill 的独立目录和名称
-2. 保留 `SKILL.md`、`README.md`、`config.yaml`、`scripts/`、`plans/`、`tests/`、`docs/`
+2. 核心保留 `SKILL.md`、`README.md`、`config.yaml`、`scripts/`；若来源 skill 已有 `plans/`、`tests/`、`docs/`，也应一并保留
 3. 排除 `.DS_Store`、`__pycache__/`、`*.pyc` 等缓存产物
 4. 在根级 `README.md` 或 `skills/README.md` 中登记新 skill 的用途与边界
 5. 在 `CHANGELOG.md` 中记录迁移、重构或新增情况

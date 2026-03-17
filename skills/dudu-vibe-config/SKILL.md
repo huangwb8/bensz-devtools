@@ -24,9 +24,15 @@ metadata:
 把“人类的配置意图”稳定地翻译成对 `dudu` **Vibe Agent API** 的一组受限操作（仅 `/vibe/agent/*`），以支持远程优化：
 
 - 模板：创建/删除
-- 订阅：创建/更新/退订（支持显式透传主题 `ai.*` 与按用户保存的 `generationAi.*`）
+- 订阅：当前服务实际支持创建/退订；客户端另提供前向兼容的 `subscriptions update` 包装，待服务端开放后启用
 - 报道：触发生成/删除（支持生成时临时覆盖 AI 配置）
 - 域名规则：读取/更新（allowlist/blocklist/keywords）
+
+## 当前对齐状态（2026-03-18 审计）
+
+- 当前 `dudu` 最新 `/vibe/agent/*` 已开放：模板 `add/delete`、订阅 `create/delete`、报道 `generate/delete`、域名规则 `get/set`。
+- `subscriptions update` / `generationAi` 更新目前仍是客户端前向兼容能力：如果服务端未开放路由，客户端只会返回 `unsupported_server_capability`，不会做危险的“删旧建新”兜底。
+- 所有写请求默认不自动重试，避免在超时或瞬时 5xx 后重复创建连接、模板、订阅等资源。
 
 ## 安全边界（强制）
 
@@ -81,8 +87,8 @@ python3 scripts/client.py --dry-run domains set --reset --allowlist example.com
 - “屏蔽 bad.com”：`domains set --blocklist bad.com`
 - “添加关键词过滤 X”：`domains set --keywords X`
 - “新增一个每日订阅”：`subscriptions create --frequency daily`
-- “把已有订阅切到 Codex CLI + 更高推理强度”：`subscriptions update --topic-id ... --sdk codex_cli --reasoning-effort high`
-- “把手动生成默认模型改成 Claude，并清空分组”：`subscriptions update --topic-id ... --generation-sdk claude --group-id default`
+- “把已有订阅切到 Codex CLI + 更高推理强度（当前服务会返回 `unsupported_server_capability`）”：`subscriptions update --topic-id ... --sdk codex_cli --reasoning-effort high`
+- “把手动生成默认模型改成 Claude，并清空分组（当前服务会返回 `unsupported_server_capability`）”：`subscriptions update --topic-id ... --generation-sdk claude --group-id default`
 - “用 Claude Code 建一个开发工具类订阅”：`subscriptions create --frequency daily --sdk claude_code --thinking-mode thinking`
 - “触发某个订阅生成新报道”：`reports generate --topic-id ...`
 - “这次生成临时改用 Codex CLI 高推理”：`reports generate --topic-id ... --sdk codex_cli --reasoning-effort high`
@@ -148,9 +154,12 @@ python3 scripts/client.py subscriptions create \
 
 ## 失败处理（必须执行）
 
-- 401：Key/URL 错误或 Key 被吊销 → 停止，提示用户去 Web “氛围配置”页创建新 Key（不尝试暴力重试）
+- 400：参数或请求体不符合服务端校验规则 → 原样输出 JSON 错误并停止
+- 401：可能是 Key/URL 错误、Key 被吊销，或 `x-dudu-vibe-connection` 无效/失效 → 停止并检查 Key/连接状态
+- 404：资源不存在，或当前服务端尚未开放对应路由（如 `subscriptions update`） → 原样输出并停止
 - 409 terminate_requested：用户已在 Web 端终止连接 → 立刻停止并断开
-- 5xx / 超时：最多重试 2 次（指数退避），仍失败则输出可复现命令与诊断建议
+- 202：请求已入队（主要出现在 `reports generate`）→ 视为成功
+- 5xx / 超时：GET 类请求最多重试 2 次；写请求不自动重试，避免重复写入
 
 ## 输出约定（用于工具调用）
 

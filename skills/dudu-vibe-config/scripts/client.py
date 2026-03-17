@@ -93,24 +93,29 @@ def _call(
     timeout_seconds: int,
     retries: int,
 ) -> HttpResult:
+    method_upper = method.upper()
+    # Safety: non-GET writes are not retried automatically because current
+    # /vibe/agent mutations are not idempotent and may create duplicate data.
+    effective_retries = retries if method_upper == "GET" else 0
     if DRY_RUN:
         _print_json(
             {
                 "dry_run": True,
-                "method": method.upper(),
+                "method": method_upper,
                 "url": url,
                 "json_body": json_body,
+                "retries": effective_retries,
                 "note": "headers not printed (to avoid leaking x-dudu-vibe-key)",
             }
         )
         return HttpResult(status=0, headers={}, body_text="", json=None)
     return request_json(
-        method,
+        method_upper,
         url,
         headers=headers,
         json_body=json_body,
         timeout_seconds=timeout_seconds,
-        retries=retries,
+        retries=effective_retries,
     )
 
 

@@ -9,7 +9,9 @@
 - 将 `skills/bensz-channel-devtools` 重命名为 `skills/bensz-channel-vibe-config`
 - 同步更新仓库入口文档、skill 元数据、脚本中的默认 skill 名称与命令示例
 - 将 `bensz-channel-vibe-config` 的能力说明更新为“频道、标签、文章、评论、用户”，并同步来源仓库路径到 `/Volumes/2T01/winE/Starup/bensz-channel`
-- 调整 `.gitignore`：不再忽略整个 `skills/*/plans/` 与 `skills/*/tests/`，改为只忽略测试运行产物，确保每个 skill 的计划与测试沉淀都能被版本控制追踪
+- 基于当前仓库实际维护边界，统一文档中的上游业务仓库路径：`dudu` 对齐为 `/Volumes/2T01/winE/Starup/dudu`，`bensz-channel` 对齐为 `/Volumes/2T01/winE/Starup/bensz-channel`
+- 统一仓库结构口径：`SKILL.md`、`README.md`、`config.yaml`、`scripts/` 为核心资产，`docs/`、`plans/`、`tests/` 为推荐且可追踪的沉淀目录
+- 调整 `.gitignore`：取消忽略整个 `skills/*/plans/` 与 `skills/*/tests/`，只保留缓存/临时产物忽略规则，确保每个 skill 的计划与测试沉淀都能被版本控制追踪
 
 ### Added
 

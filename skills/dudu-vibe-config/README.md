@@ -6,8 +6,15 @@
 
 - 批量维护域名规则（allowlist/blocklist/keywords）
 - 创建/删除模板（Templates）
-- 创建/更新/退订订阅（Subscriptions），并可显式指定主题 AI 与按用户存储的生成偏好
+- 创建/退订订阅（Subscriptions），并可显式指定主题 AI
 - 触发生成报道、删除报道（Reports），并可在生成时临时覆盖 AI 配置
+
+## 当前对齐状态（2026-03-18 审计）
+
+- 当前 `dudu` 最新 `/vibe/agent/*` 实际开放的能力：模板 `add/delete`、订阅 `create/delete`、报道 `generate/delete`、域名规则 `get/set`，以及 `ping/connect/heartbeat/disconnect`。
+- `subscriptions update` 与 `generationAi` 更新目前属于客户端的**前向兼容封装**：参数语义已按主项目 `topics/:id` / `topics/:id/subscribe` 模型对齐，但当前服务端尚未开放对应 `/vibe/agent/subscriptions/:topicId` 路由。
+- 当服务端尚未开放更新路由时，客户端会返回结构化 `unsupported_server_capability`，不会用“删除重建订阅”的方式做危险兜底。
+- 所有写请求默认**不自动重试**，避免在超时或瞬时 5xx 后重复创建连接、模板或订阅。
 
 ## 依赖与约束
 
@@ -15,6 +22,7 @@
 - 需要一个有效的 `Vibe URL + Vibe Key`
 - **安全边界**：只调用 `dudu` 的 `/vibe/agent/*` 受限接口；不做越权访问
 - **禁止事项**：严禁修改 dudu 软件源代码（本 skill 仅用于配置侧变更）
+- **可靠性约束**：变更类请求默认不自动重试，优先避免重复写入
 
 ## 配置（URL + KEY）
 
@@ -63,7 +71,7 @@ python3 scripts/client.py doctor --watch-seconds 120
 
 说明：`doctor`/`doctor --watch-seconds` 输出为 JSON（或多条 JSON），便于在工具调用中稳定解析；若 Web 端触发终止，会输出 `terminate_requested=true` 并以退出码 0 结束。若你的订阅走 `claude_code` / `codex_cli`，宿主环境仍需在 dudu 主项目侧启用对应 CLI provider / MCP 能力，否则服务端会按主项目当前策略回退。
 
-兼容性提醒：`subscriptions update` 的字段模型已按 `dudu` 最新 `topics/:id` + `topics/:id/subscribe` 语义对齐，但当前最新 `dudu` 源码里的 `/vibe/agent/*` 仍未提供订阅更新路由。为避免“删除重建订阅”导致 topic/report 历史丢失，本 skill 遇到旧服务时会返回结构化 `unsupported_server_capability`，而不会做破坏性兜底。
+兼容性提醒：`subscriptions update` 的字段模型已按 `dudu` 最新 `topics/:id` + `topics/:id/subscribe` 语义对齐，但当前最新 `dudu` 源码里的 `/vibe/agent/*` 仍未提供订阅更新路由。为避免“删除重建订阅”导致 topic/report 历史丢失，本 skill 遇到当前服务时会返回结构化 `unsupported_server_capability`，而不会做破坏性兜底。
 
 ```bash
 # 域名规则（读取）
@@ -85,6 +93,7 @@ python3 scripts/client.py templates delete --id <template-id>
 # 订阅
 python3 scripts/client.py subscriptions create --name "订阅名" --prompt "订阅提示词" --frequency daily
 python3 scripts/client.py subscriptions create --name "开发工具追踪" --prompt "跟踪 Claude Code / Codex CLI / MCP 更新" --frequency daily --sdk claude_code --reasoning-effort medium --thinking-mode thinking
+# 当前服务端尚未开放 update 路由；以下命令目前会返回 unsupported_server_capability
 python3 scripts/client.py subscriptions update --topic-id <topic-uuid> --sdk codex_cli --model "" --reasoning-effort high
 python3 scripts/client.py subscriptions update --topic-id <topic-uuid> --tier premium --style deep_research --generation-sdk claude --generation-thinking-mode thinking
 python3 scripts/client.py --dry-run subscriptions update --topic-id <topic-uuid> --prompt '"agentic coding" OR codex OR "claude code"' --frequency '{"type":"custom","interval_seconds":21600}'
@@ -117,3 +126,13 @@ python3 scripts/client.py reports delete --topic-id <topic-uuid> --report-id <re
 
 - 不要在日志/截图/issue 中暴露完整 `DUDU_VIBE_KEY`（本 skill 默认只展示前缀）
 - 建议在 dudu Web 的“氛围配置”页面按需创建/吊销 Key
+
+## 常见状态码
+
+- `200`：请求已完成。
+- `202`：请求已入队，当前主要出现在 `reports generate`。
+- `400`：参数或请求体不符合服务端校验规则。
+- `401`：可能是 `x-dudu-vibe-key` 无效，也可能是 `x-dudu-vibe-connection` 缺失/失效。
+- `404`：资源不存在，或当前服务端尚未开放对应路由（例如 `subscriptions update`）。
+- `409`：Web 端已经终止当前连接，返回 `terminate_requested`。
+- `5xx` / 超时：服务端或网络异常；本 skill 对写请求不会自动重试，避免重复写入。

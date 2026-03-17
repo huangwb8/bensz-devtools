@@ -4,6 +4,19 @@
 
 ## [Unreleased]
 
+### Added（新增）
+
+- 新增契约回归测试：覆盖写请求禁用自动重试、`reports generate` 接受 `202`、以及 `dudu_base_url` / `dudu_vibe_api` 环境变量别名解析
+
+### Changed（变更）
+
+- 基于 2026-03-18 对 `/Volumes/2T01/winE/Starup/dudu` 最新 `/vibe/agent/*` 源码审计，收紧文档口径：明确当前服务端实际开放的是模板/订阅创建删除、报道生成删除、域名规则读写；`subscriptions update` / `generationAi` 更新仍属前向兼容包装
+- README 与 SKILL.md 新增常见状态码说明，并明确写请求默认不自动重试
+
+### Fixed（修复）
+
+- 修复非幂等写请求的重试风险：`POST/PUT/DELETE` 不再自动重试，避免在超时或瞬时 5xx 后重复创建连接、模板或订阅
+
 ## [0.3.0] - 2026-03-16
 
 ### Added（新增）

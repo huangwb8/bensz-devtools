@@ -64,6 +64,7 @@ __pycache__/
 .parallel_vibe/
 
 # Skill 运行时产物（计划与测试报告，不纳入版本控制）
+# AI不能改这个规定，除非用户要求
 skills/*/plans/
 skills/*/tests/
 

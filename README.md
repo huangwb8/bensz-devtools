@@ -12,14 +12,14 @@
 ## 仓库定位
 
 - 这是一个 skill 聚合仓库，不是 `dudu` 或 `bensz-channel` 的业务代码仓库
-- 每个 skill 保持独立目录，保留自己的 `SKILL.md`、`README.md`、`config.yaml`、`scripts/`、`plans/`、`tests/`
+- 每个 skill 保持独立目录，保留自己的 `SKILL.md`、`README.md`、`config.yaml`、`scripts/`；`docs/`、`plans/`、`tests/` 为推荐沉淀目录
 - 未来新增软件时，优先继续沿用同样的桥梁型目录结构，而不是把不同产品的逻辑混写在一个 skill 里
 
 ## 当前 Skills
 
 ### `skills/dudu-vibe-config`
 
-- 来源：`/Volumes/2T01/winE/Starup/dudu-devtools`
+- 上游业务仓库：`/Volumes/2T01/winE/Starup/dudu`
 - 目标系统：`dudu`
 - 能力范围：模板、订阅、报道、域名规则
 - 安全边界：仅访问 `/vibe/agent/*`
