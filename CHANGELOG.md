@@ -12,6 +12,7 @@
 - 基于当前仓库实际维护边界，统一文档中的上游业务仓库路径：`dudu` 对齐为 `/Volumes/2T01/winE/Starup/dudu`，`bensz-channel` 对齐为 `/Volumes/2T01/winE/Starup/bensz-channel`
 - 统一仓库结构口径：`SKILL.md`、`README.md`、`config.yaml`、`scripts/` 为核心资产，`docs/`、`plans/`、`tests/` 为推荐且可追踪的沉淀目录
 - 调整 `.gitignore`：取消忽略整个 `skills/*/plans/` 与 `skills/*/tests/`，只保留缓存/临时产物忽略规则，确保每个 skill 的计划与测试沉淀都能被版本控制追踪
+- 为 `skills/dudu-vibe-config/tests/test_client_defaults.py` 增加 `.gitignore` 精确例外，确保本次新增回归测试可被版本控制追踪，同时不放出其他历史批次产物
 
 ### Added
 
