@@ -33,6 +33,8 @@ metadata:
 - 当前 `dudu` 最新 `/vibe/agent/*` 已开放：模板 `add/delete`、订阅 `create/delete`、报道 `generate/delete`、域名规则 `get/set`。
 - `subscriptions update` / `generationAi` 更新目前仍是客户端前向兼容能力：如果服务端未开放路由，客户端只会返回 `unsupported_server_capability`，不会做危险的“删旧建新”兜底。
 - 所有写请求默认不自动重试，避免在超时或瞬时 5xx 后重复创建连接、模板、订阅等资源。
+- 新增订阅时，若用户未指定 AI 配置，当前 skill 默认按 `codex_cli + gpt-5.4 + medium` 创建；若用户显式指定 `sdk/model/reasoning-effort`，则以用户参数为准。
+- 新增模板接口当前**不保存 AI 配置**；因此“新模板默认 SDK”只体现在后续基于该模板创建订阅/生成报道时的默认行为，不会伪造一个服务端并不存在的模板字段。
 
 ## 安全边界（强制）
 
@@ -86,10 +88,11 @@ python3 scripts/client.py --dry-run domains set --reset --allowlist example.com
 - “把 example.com 加入白名单”：`domains set --allowlist example.com`
 - “屏蔽 bad.com”：`domains set --blocklist bad.com`
 - “添加关键词过滤 X”：`domains set --keywords X`
-- “新增一个每日订阅”：`subscriptions create --frequency daily`
+- “新增一个每日订阅（未指定 AI 时默认 Codex CLI + gpt-5.4 + medium）”：`subscriptions create --frequency daily`
 - “把已有订阅切到 Codex CLI + 更高推理强度（当前服务会返回 `unsupported_server_capability`）”：`subscriptions update --topic-id ... --sdk codex_cli --reasoning-effort high`
 - “把手动生成默认模型改成 Claude，并清空分组（当前服务会返回 `unsupported_server_capability`）”：`subscriptions update --topic-id ... --generation-sdk claude --group-id default`
 - “用 Claude Code 建一个开发工具类订阅”：`subscriptions create --frequency daily --sdk claude_code --thinking-mode thinking`
+- “新增一个模板”：`templates add ...`（模板本身不持久化 AI 配置；若随后要按默认 AI 落地订阅，则默认使用 `codex_cli + gpt-5.4 + medium`，除非用户另行指定）
 - “触发某个订阅生成新报道”：`reports generate --topic-id ...`
 - “这次生成临时改用 Codex CLI 高推理”：`reports generate --topic-id ... --sdk codex_cli --reasoning-effort high`
 

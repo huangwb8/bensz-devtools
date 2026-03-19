@@ -4,14 +4,20 @@
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-03-18
+
 ### Added（新增）
 
 - 新增契约回归测试：覆盖写请求禁用自动重试、`reports generate` 接受 `202`、以及 `dudu_base_url` / `dudu_vibe_api` 环境变量别名解析
+- 新增 `tests/test_client_defaults.py`：覆盖新增订阅时的默认 AI 注入、显式模型覆盖、CLI 空模型透传与非默认 SDK 保持原样
 
 ### Changed（变更）
 
 - 基于 2026-03-18 对 `/Volumes/2T01/winE/Starup/dudu` 最新 `/vibe/agent/*` 源码审计，收紧文档口径：明确当前服务端实际开放的是模板/订阅创建删除、报道生成删除、域名规则读写；`subscriptions update` / `generationAi` 更新仍属前向兼容包装
 - README 与 SKILL.md 新增常见状态码说明，并明确写请求默认不自动重试
+- 新增订阅的默认 AI 从“依赖服务端 topic 默认值”收敛为 skill 侧显式下发：`codex_cli + gpt-5.4 + medium`
+- `config.yaml` 新增订阅默认 AI 的单一配置来源，显式传入 `--sdk/--model/--reasoning-effort` 时仍优先尊重用户参数
+- 文档同步澄清“新模板默认 SDK”边界：`/vibe/agent/templates` 仅保存模板元数据，不持久化 AI 配置
 
 ### Fixed（修复）
 

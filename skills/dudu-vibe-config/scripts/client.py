@@ -38,11 +38,23 @@ def _skill_root() -> Path:
 
 def _config() -> dict[str, Any]:
     cfg = load_flat_yaml(_skill_root() / "config.yaml")
+    default_subscription_ai_sdk = str(cfg.scalars.get("default_subscription_ai_sdk", "codex_cli")).strip() or "codex_cli"
+    if default_subscription_ai_sdk not in SDK_CHOICES:
+        default_subscription_ai_sdk = "codex_cli"
+    default_subscription_ai_model = str(cfg.scalars.get("default_subscription_ai_model", "gpt-5.4"))
+    default_subscription_ai_reasoning_effort = (
+        str(cfg.scalars.get("default_subscription_ai_reasoning_effort", "medium")).strip() or "medium"
+    )
+    if default_subscription_ai_reasoning_effort not in REASONING_EFFORT_CHOICES:
+        default_subscription_ai_reasoning_effort = "medium"
     return {
         "name": cfg.scalars.get("skill_name", "dudu-vibe-config"),
         "version": cfg.scalars.get("skill_version", "0.0.0"),
         "timeout": int(cfg.scalars.get("request_timeout_seconds", "15")),
         "heartbeat": int(cfg.scalars.get("heartbeat_interval_seconds", "30")),
+        "default_subscription_ai_sdk": default_subscription_ai_sdk,
+        "default_subscription_ai_model": default_subscription_ai_model,
+        "default_subscription_ai_reasoning_effort": default_subscription_ai_reasoning_effort,
     }
 
 
@@ -331,6 +343,62 @@ def _build_ai_payload(
     return payload or None
 
 
+def _build_subscription_create_ai_payload(
+    *,
+    sdk: str | None,
+    model: str | None,
+    reasoning_effort: str | None,
+    thinking_mode: str | None,
+) -> dict[str, Any] | None:
+    cfg = _config()
+    effective_sdk = sdk if sdk is not None else str(cfg["default_subscription_ai_sdk"])
+    effective_model = model
+    effective_reasoning_effort = reasoning_effort
+
+    # Skill-level default: new subscriptions use Codex CLI unless the user explicitly picks another SDK.
+    if effective_sdk == cfg["default_subscription_ai_sdk"]:
+        if effective_model is None:
+            effective_model = str(cfg["default_subscription_ai_model"])
+        if effective_reasoning_effort is None and effective_sdk in ("codex", "codex_cli"):
+            effective_reasoning_effort = str(cfg["default_subscription_ai_reasoning_effort"])
+
+    return _build_ai_payload(
+        sdk=effective_sdk,
+        model=effective_model,
+        reasoning_effort=effective_reasoning_effort,
+        thinking_mode=thinking_mode,
+    )
+
+
+def _build_subscription_create_payload(
+    *,
+    name: str,
+    prompt: str,
+    frequency: str,
+    tier: str | None,
+    style: str | None,
+    sdk: str | None,
+    model: str | None,
+    reasoning_effort: str | None,
+    thinking_mode: str | None,
+) -> dict[str, Any]:
+    freq = _parse_frequency_arg(frequency)
+    payload: dict[str, Any] = {"name": name, "prompt": prompt, "frequency": freq}
+    if tier is not None:
+        payload["tier"] = tier
+    if style is not None:
+        payload["style"] = style
+    ai_payload = _build_subscription_create_ai_payload(
+        sdk=sdk,
+        model=model,
+        reasoning_effort=reasoning_effort,
+        thinking_mode=thinking_mode,
+    )
+    if ai_payload is not None:
+        payload["ai"] = ai_payload
+    return payload
+
+
 def _build_subscription_update_payload(
     *,
     name: str | None,
@@ -530,20 +598,17 @@ def cmd_subscriptions_create(
     reasoning_effort: str | None,
     thinking_mode: str | None,
 ) -> int:
-    freq = _parse_frequency_arg(frequency)
-    payload: dict[str, Any] = {"name": name, "prompt": prompt, "frequency": freq}
-    if tier is not None:
-        payload["tier"] = tier
-    if style is not None:
-        payload["style"] = style
-    ai_payload = _build_ai_payload(
+    payload = _build_subscription_create_payload(
+        name=name,
+        prompt=prompt,
+        frequency=frequency,
+        tier=tier,
+        style=style,
         sdk=sdk,
         model=model,
         reasoning_effort=reasoning_effort,
         thinking_mode=thinking_mode,
     )
-    if ai_payload is not None:
-        payload["ai"] = ai_payload
     with _auto_connection(vibe, enable=True, timeout_seconds=timeout_seconds) as conn_id:
         res = _call(
             "POST",
