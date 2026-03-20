@@ -27,7 +27,7 @@ https://channel.hwb0307.com/channels/716f55930b26ce88/articles/e175fb843cd0ce88 
 
 /Volumes/2T01/Github/ChineseResearchLaTeX v4.0.8 请写个非常详细的文章介绍主要的改进， 发到 bensz channel 的 科研 频道上。 要求：
 
-- 在既往 bensz channel 上和 ChineseResearchLaTeX 有关的文章，这样比较有连贯性
+- 请结合既往 bensz channel 上和 ChineseResearchLaTeX 有关的文章一起讨论，这样比较有连贯性
 - 重点突出，有煽动性
 - 较为详尽，让读者能切实地感受到项目的变化
 - 文末要附带项目github地址
