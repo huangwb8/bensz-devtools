@@ -32,6 +32,8 @@ def _normalize_base_url(url: str) -> str:
     u = (url or "").strip()
     if not u:
         return u
+    if "://" in u and not (u.startswith("http://") or u.startswith("https://")):
+        raise SystemExit(f"Invalid vibe URL scheme (http/https only): {url!r}")
     if not (u.startswith("http://") or u.startswith("https://")):
         # 默认按 http 处理（本机 docker/内网常见）；避免 silent failure
         u = "http://" + u

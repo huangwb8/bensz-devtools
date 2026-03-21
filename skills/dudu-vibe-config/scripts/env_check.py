@@ -18,7 +18,7 @@ def main() -> int:
 
     problems: list[str] = []
     if not vibe.url:
-        problems.append("缺少 URL：请设置 DUDU_VIBE_URL（或 dudu_vibe_url）")
+        problems.append("缺少 URL：请设置 DUDU_VIBE_URL（或 dudu_vibe_url / dudu_base_url）")
     if not vibe.key:
         problems.append("缺少 KEY：请设置 DUDU_VIBE_KEY（或 dudu_vibe_key / dudu_vibe_api）")
     if vibe.key and len(vibe.key) < 16:
@@ -40,4 +40,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

@@ -41,7 +41,7 @@ def _config() -> dict[str, Any]:
     default_subscription_ai_sdk = str(cfg.scalars.get("default_subscription_ai_sdk", "codex_cli")).strip() or "codex_cli"
     if default_subscription_ai_sdk not in SDK_CHOICES:
         default_subscription_ai_sdk = "codex_cli"
-    default_subscription_ai_model = str(cfg.scalars.get("default_subscription_ai_model", "gpt-5.4"))
+    default_subscription_ai_model = str(cfg.scalars.get("default_subscription_ai_model", ""))
     default_subscription_ai_reasoning_effort = (
         str(cfg.scalars.get("default_subscription_ai_reasoning_effort", "medium")).strip() or "medium"
     )
@@ -147,6 +147,15 @@ def _ensure_key(vibe: VibeEnv) -> None:
         raise SystemExit("Missing DUDU_VIBE_KEY (or dudu_vibe_key / dudu_vibe_api).")
     if len(vibe.key) < 16:
         raise SystemExit("Invalid vibe key (length < 16).")
+
+
+def _print_transport_error(err: RuntimeError) -> None:
+    _print_json(
+        {
+            "error": "transport_error",
+            "message": str(err),
+        }
+    )
 
 
 def _terminate_guard(res: HttpResult) -> None:
@@ -867,7 +876,8 @@ def main(argv: list[str]) -> int:
     if args.key:
         vibe = VibeEnv(url=vibe.url, key=args.key.strip(), url_source=vibe.url_source, key_source=vibe.key_source)
 
-    _ensure_key(vibe)
+    if not DRY_RUN:
+        _ensure_key(vibe)
 
     timeout_seconds = int(args.timeout or _config()["timeout"])
 
@@ -992,6 +1002,9 @@ def main(argv: list[str]) -> int:
     except TerminateRequested as e:
         _print_json({"terminate_requested": True, "reason": e.reason, **_result_payload(e.res)})
         return 0
+    except RuntimeError as e:
+        _print_transport_error(e)
+        return 1
 
     raise SystemExit("unknown command")
 

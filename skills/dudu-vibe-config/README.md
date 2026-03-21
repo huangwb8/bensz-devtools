@@ -9,19 +9,20 @@
 - 创建/退订订阅（Subscriptions），并可显式指定主题 AI
 - 触发生成报道、删除报道（Reports），并可在生成时临时覆盖 AI 配置
 
-## 当前对齐状态（2026-03-18 审计）
+## 当前对齐状态（2026-03-21 审计）
 
 - 当前 `dudu` 最新 `/vibe/agent/*` 实际开放的能力：模板 `add/delete`、订阅 `create/delete`、报道 `generate/delete`、域名规则 `get/set`，以及 `ping/connect/heartbeat/disconnect`。
-- `subscriptions update` 与 `generationAi` 更新目前属于客户端的**前向兼容封装**：参数语义已按主项目 `topics/:id` / `topics/:id/subscribe` 模型对齐，但当前服务端尚未开放对应 `/vibe/agent/subscriptions/:topicId` 路由。
+- 模板创建已支持 `sourceType=search|rss_opml` 与可选 `opml`；当前 skill 已对齐该请求体。
+- `subscriptions update` 与 `generationAi` 更新目前属于客户端的**前向兼容封装**：参数语义已按主项目 `topics/:id` / `topics/:id/subscribe`（含 `groupId` / `generationAi`）模型对齐，但当前服务端尚未开放对应 `/vibe/agent/subscriptions/:topicId` 路由。
 - 当服务端尚未开放更新路由时，客户端会返回结构化 `unsupported_server_capability`，不会用“删除重建订阅”的方式做危险兜底。
 - 所有写请求默认**不自动重试**，避免在超时或瞬时 5xx 后重复创建连接、模板或订阅。
-- 新增订阅时，如未显式指定 AI 配置，CLI 默认会发送 `codex_cli + gpt-5.4 + medium`；若你明确传入 `--sdk/--model/--reasoning-effort`，则以显式参数为准。
+- 新增订阅时，如未显式指定 AI 配置，CLI 默认会发送 `codex_cli + CLI/provider 默认模型 + medium`；也就是 `sdk=codex_cli`、`model=""`、`reasoningEffort=medium`。若你明确传入 `--sdk/--model/--reasoning-effort`，则以显式参数为准。
 - 新增模板接口当前只保存模板元数据，不保存 AI 配置；因此“默认 SDK”只会作用在后续基于该模板创建订阅时，不会额外写入不存在的模板字段。
 
 ## 依赖与约束
 
 - Python 3（仅使用标准库；不依赖 `requests` / `PyYAML`）
-- 需要一个有效的 `Vibe URL + Vibe Key`
+- 除纯本地 `--dry-run` 外，需要一个有效的 `Vibe URL + Vibe Key`
 - **安全边界**：只调用 `dudu` 的 `/vibe/agent/*` 受限接口；不做越权访问
 - **禁止事项**：严禁修改 dudu 软件源代码（本 skill 仅用于配置侧变更）
 - **可靠性约束**：变更类请求默认不自动重试，优先避免重复写入
@@ -35,7 +36,7 @@
 
 兼容别名：
 
-- URL：`dudu_vibe_url`
+- URL：`dudu_vibe_url`、`dudu_base_url`
 - KEY：`dudu_vibe_key`、`dudu_vibe_api`
 
 `.env` 搜索顺序（脚本自动查找）：
@@ -85,15 +86,16 @@ python3 scripts/client.py domains set --allowlist example.com --blocklist bad.co
 # 域名规则（重置为你提供的列表；危险操作）
 python3 scripts/client.py domains set --reset --allowlist example.com
 
-# dry-run：只打印将要发出的请求（不打印 key）
+# dry-run：只打印将要发出的请求（不打印 key）；纯本地预览时不要求先配置 key
 python3 scripts/client.py --dry-run domains set --reset --allowlist example.com
 
 # 模板
 python3 scripts/client.py templates add --title "模板标题" --query "检索词/提示词" --frequency daily
+python3 scripts/client.py templates add --title "RSS 模板" --query "RSS 导入模板" --frequency daily --source-type rss_opml --opml '<opml version="2.0">...</opml>'
 python3 scripts/client.py templates delete --id <template-id>
 
 # 订阅
-# 未传 AI 参数时，默认创建为 codex_cli + gpt-5.4 + medium
+# 未传 AI 参数时，默认创建为 codex_cli + CLI/provider 默认模型 + medium
 python3 scripts/client.py subscriptions create --name "订阅名" --prompt "订阅提示词" --frequency daily
 python3 scripts/client.py subscriptions create --name "开发工具追踪" --prompt "跟踪 Claude Code / Codex CLI / MCP 更新" --frequency daily --sdk claude_code --reasoning-effort medium --thinking-mode thinking
 # 当前服务端尚未开放 update 路由；以下命令目前会返回 unsupported_server_capability
@@ -128,7 +130,7 @@ python3 scripts/client.py reports delete --topic-id <topic-uuid> --report-id <re
 ## 新增订阅默认 AI
 
 - 默认 SDK：`codex_cli`（Codex CLI，不是 OpenAI Responses API 的 `codex`）
-- 默认模型：`gpt-5.4`
+- 默认模型：留空（`""`），交由服务端/provider/CLI 默认值补齐
 - 默认 `reasoningEffort`：`medium`
 
 说明：
@@ -150,3 +152,4 @@ python3 scripts/client.py reports delete --topic-id <topic-uuid> --report-id <re
 - `404`：资源不存在，或当前服务端尚未开放对应路由（例如 `subscriptions update`）。
 - `409`：Web 端已经终止当前连接，返回 `terminate_requested`。
 - `5xx` / 超时：服务端或网络异常；本 skill 对写请求不会自动重试，避免重复写入。
+- 非 HTTP 网络失败：CLI 会输出结构化 `transport_error` JSON，而不是 Python traceback。

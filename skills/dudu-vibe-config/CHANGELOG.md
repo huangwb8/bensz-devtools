@@ -4,6 +4,24 @@
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-03-21
+
+### Added（新增）
+
+- 扩充 `tests/test_client_defaults.py`：新增对 `--dry-run` 无 key、本地环境别名、非法 URL scheme 拒绝、以及网络传输失败结构化输出的回归测试
+
+### Changed（变更）
+
+- 基于 2026-03-21 对 `/Volumes/2T01/winE/Starup/dudu` 最新 `/vibe/agent/*` 源码审计，更新文档口径：补充 `rss_opml` 模板能力，并明确 `subscriptions update` 的字段模型已覆盖 `groupId` / `generationAi`
+- 新增订阅的默认 AI 调整为：`codex_cli + CLI/provider 默认模型 + medium`，即默认发送 `model=""`，避免把过时的固定模型名写死到 `codex_cli` 订阅中
+- `README.md` 与 `SKILL.md` 同步说明：纯本地 `--dry-run` 不要求预先配置 key，网络传输失败会输出结构化 `transport_error`
+
+### Fixed（修复）
+
+- 修复网络层异常直出 Python traceback：`client.py` 现在会把非 HTTP 传输失败收口为结构化 JSON
+- 修复环境变量 URL 校验缺口：`DUDU_VIBE_URL` / `dudu_base_url` 现在和 `--url` 一样拒绝非 `http/https` scheme
+- 修复 `--dry-run` 仍强制要求 key 的问题，让本地请求预演真正可用
+
 ## [0.3.2] - 2026-03-18
 
 ### Added（新增）
