@@ -10,6 +10,16 @@ The format is based on Keep a Changelog.
 - 将 skill 名称从 `bensz-channel-devtools` 调整为 `bensz-channel-vibe-config`。
 - 同步更新目录名、文档标题、配置元数据、CLI 默认标识与命令示例。
 
+## [1.3.0] - 2026-03-24
+
+### Added（新增）
+- 新增 `tags ensure` 命令：先读取现有标签，若 `slug` / `public_id` / `name` 精确命中则直接复用，否则再创建新标签。
+- 新增针对 `tags ensure` 的 CLI 回归测试，锁定“优先复用已有标签、必要时再创建”的行为。
+
+### Changed（变更）
+- 更新 `SKILL.md` 与 `README.md`，明确 AI 生成文章标签时必须优先沿用已有标签，并补充标签 RSS、public_id 外链和当前 SEO 能力边界说明。
+- 更新 `config.yaml` 版本号到 `1.3.0`，并把 skill 描述同步到“优先复用既有标签”的最新工作流。
+
 ## [1.2.0] - 2026-03-18
 
 ### Added（新增）

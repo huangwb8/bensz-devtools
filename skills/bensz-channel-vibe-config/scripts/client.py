@@ -96,6 +96,41 @@ def _result_payload(res: HttpResult) -> dict[str, Any]:
     return payload
 
 
+def _normalize_tag_match_value(value: Any) -> str:
+    return " ".join(str(value or "").strip().casefold().split())
+
+
+def _tags_from_response(res: HttpResult) -> list[dict[str, Any]]:
+    payload = res.json if isinstance(res.json, dict) else None
+    data = payload.get("data") if payload else None
+    if not isinstance(data, list):
+        return []
+    return [tag for tag in data if isinstance(tag, dict)]
+
+
+def _find_existing_tag(
+    tags: list[dict[str, Any]],
+    *,
+    name: str,
+    slug: str | None,
+) -> tuple[dict[str, Any] | None, str | None]:
+    slug_key = _normalize_tag_match_value(slug)
+    name_key = _normalize_tag_match_value(name)
+
+    if slug_key:
+        for field in ("slug", "public_id"):
+            for tag in tags:
+                if _normalize_tag_match_value(tag.get(field)) == slug_key:
+                    return tag, field
+
+    if name_key:
+        for tag in tags:
+            if _normalize_tag_match_value(tag.get("name")) == name_key:
+                return tag, "name"
+
+    return None, None
+
+
 def _ensure_key(env: BdcEnv) -> None:
     if not env.key:
         raise SystemExit("Missing BENSZ_CHANNEL_KEY (or bdc_key).")
@@ -332,6 +367,22 @@ def cmd_tags_list(env: BdcEnv, timeout_seconds: int) -> int:
     return 0 if (DRY_RUN or res.status == 200) else 1
 
 
+def _tag_payload(name: str, slug: str | None, description: str | None) -> dict[str, Any]:
+    body: dict[str, Any] = {"name": name}
+    if slug:
+        body["slug"] = slug
+    if description:
+        body["description"] = description
+    return body
+
+
+def _create_tag_request(env: BdcEnv, timeout_seconds: int, body: dict[str, Any]) -> HttpResult:
+    with _auto_connection(env, timeout_seconds=timeout_seconds) as conn_id:
+        return _call("POST", _url(env, "/api/vibe/tags"),
+                     headers=_headers(env, connection_id=conn_id),
+                     json_body=body, timeout_seconds=timeout_seconds, retries=2)
+
+
 def cmd_tags_create(
     env: BdcEnv,
     timeout_seconds: int,
@@ -339,17 +390,68 @@ def cmd_tags_create(
     slug: str | None,
     description: str | None,
 ) -> int:
-    body: dict[str, Any] = {"name": name}
-    if slug:
-        body["slug"] = slug
-    if description:
-        body["description"] = description
-    with _auto_connection(env, timeout_seconds=timeout_seconds) as conn_id:
-        res = _call("POST", _url(env, "/api/vibe/tags"),
-                    headers=_headers(env, connection_id=conn_id),
-                    json_body=body, timeout_seconds=timeout_seconds, retries=2)
-        _print_json(_result_payload(res))
-        return 0 if (DRY_RUN or res.status == 201) else 1
+    body = _tag_payload(name, slug, description)
+    res = _create_tag_request(env, timeout_seconds, body)
+    _print_json(_result_payload(res))
+    return 0 if (DRY_RUN or res.status == 201) else 1
+
+
+def cmd_tags_ensure(
+    env: BdcEnv,
+    timeout_seconds: int,
+    name: str,
+    slug: str | None,
+    description: str | None,
+) -> int:
+    lookup = _call("GET", _url(env, "/api/vibe/tags"), headers=_headers(env),
+                   timeout_seconds=timeout_seconds, retries=2)
+    if not DRY_RUN and lookup.status != 200:
+        _print_json({
+            "action": "list_existing_tags",
+            **_result_payload(lookup),
+        })
+        return 1
+
+    matched_tag, matched_by = _find_existing_tag(_tags_from_response(lookup), name=name, slug=slug)
+    if matched_tag is not None:
+        _print_json({
+            "action": "reuse_existing_tag",
+            "matched_by": matched_by,
+            "tag": matched_tag,
+        })
+        return 0
+
+    if DRY_RUN:
+        _print_json({
+            "action": "create_tag_if_needed",
+            "description": description,
+            "dry_run": True,
+            "name": name,
+            "note": "tags ensure 会先复用完全匹配的现有标签；仅在找不到 name/slug/public_id 精确匹配时才创建新标签。",
+            "slug": slug,
+        })
+        return 0
+
+    create_res = _create_tag_request(env, timeout_seconds, _tag_payload(name, slug, description))
+    if create_res.status == 201:
+        _print_json(_result_payload(create_res))
+        return 0
+
+    if create_res.status == 422:
+        retry_lookup = _call("GET", _url(env, "/api/vibe/tags"), headers=_headers(env),
+                             timeout_seconds=timeout_seconds, retries=2)
+        if retry_lookup.status == 200:
+            matched_tag, matched_by = _find_existing_tag(_tags_from_response(retry_lookup), name=name, slug=slug)
+            if matched_tag is not None:
+                _print_json({
+                    "action": "reuse_existing_tag_after_conflict",
+                    "matched_by": matched_by,
+                    "tag": matched_tag,
+                })
+                return 0
+
+    _print_json(_result_payload(create_res))
+    return 1
 
 
 def cmd_tags_update(env: BdcEnv, timeout_seconds: int, tag_id: str, **kwargs: Any) -> int:
@@ -525,6 +627,10 @@ def main(argv: list[str]) -> int:
     tg_c.add_argument("--name", required=True, help="标签名称")
     tg_c.add_argument("--slug", default=None)
     tg_c.add_argument("--description", default=None)
+    tg_e = tg_sub.add_parser("ensure", help="优先复用已有标签；不存在时再创建")
+    tg_e.add_argument("--name", required=True, help="期望标签名称")
+    tg_e.add_argument("--slug", default=None, help="期望标签 slug；若命中现有 slug/public_id 会直接复用")
+    tg_e.add_argument("--description", default=None, help="仅在需要新建标签时使用")
     tg_u = tg_sub.add_parser("update", help="更新标签")
     tg_u.add_argument("--id", required=True, help="标签标识（数值 ID / public_id / slug）")
     tg_u.add_argument("--name", default=None)
@@ -627,6 +733,8 @@ def main(argv: list[str]) -> int:
             return cmd_tags_list(env, timeout_seconds)
         if args.tg_cmd == "create":
             return cmd_tags_create(env, timeout_seconds, args.name, args.slug, args.description)
+        if args.tg_cmd == "ensure":
+            return cmd_tags_ensure(env, timeout_seconds, args.name, args.slug, args.description)
         if args.tg_cmd == "update":
             return cmd_tags_update(env, timeout_seconds, args.id,
                                    name=args.name, slug=args.slug, description=args.description)

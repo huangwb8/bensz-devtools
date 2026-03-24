@@ -56,10 +56,27 @@ python3 scripts/client.py doctor
 
 - 频道：`--id` 支持 **数值 ID / public_id / slug**
 - 标签：`--id` 支持 **数值 ID / public_id / slug**
+- `tags ensure` 会先按 **slug / public_id / name** 查找现有标签；命中则复用，未命中才新建
 - 文章：`--id` 支持 **数值 ID / public_id / slug**
 - 文章标签：`articles list --tag-id`、`articles create/update --tag-id` 使用 **标签数值 ID**
 - 评论：`--id` 使用 **数值 ID**
 - 用户：`--id` 使用 **数值 ID**
+
+## 标签复用优先
+
+当 AI 或脚本要为文章生成标签时，推荐固定遵循下面的顺序：
+
+1. 先执行 `python3 scripts/client.py tags list` 查看现有标签。
+2. 如果已有语义一致或完全等价的标签，直接复用已有标签，不再重复创建。
+3. 只有在确实没有合适标签时，才执行 `tags ensure` 或 `tags create` 新建。
+
+推荐命令：
+
+```bash
+python3 scripts/client.py tags ensure --name Laravel --slug laravel --description "Laravel 相关文章"
+```
+
+`tags ensure` 会先读取现有标签；如果 `name`、`slug` 或 `public_id` 精确命中已有标签，就直接返回该标签。只有未命中时，才会走创建流程。
 
 ## 常用命令
 
@@ -95,6 +112,7 @@ python3 scripts/client.py articles delete --id 42
 
 # 标签管理
 python3 scripts/client.py tags list
+python3 scripts/client.py tags ensure --name Laravel --slug laravel --description "Laravel 相关文章"
 python3 scripts/client.py tags create --name Laravel --slug laravel --description "Laravel 相关文章"
 python3 scripts/client.py tags update --id laravel --name "Laravel 12"
 python3 scripts/client.py tags delete --id laravel
@@ -120,7 +138,10 @@ python3 scripts/client.py --env /path/to/.env channels list
 - 只允许调用 `/api/vibe/*` 端点
 - 不修改软件源代码，只操作数据库内容
 - 精华频道不能作为文章主频道
+- 公开文章、频道、标签及对应 RSS 外链当前统一以 `public_id` 作为规范标识
 - 文章标签关联通过 `tag_ids` 数组完成，需传标签数值 ID
+- 标签 RSS 入口为 `/feeds/tags/{tag-public-id}.xml`；全站与频道 RSS 分别为 `/feeds/articles.xml`、`/feeds/channels/{channel-public-id}.xml`
+- 站点 SEO、canonical、Open Graph、Twitter Card、`robots.txt` 与 `sitemap.xml` 由服务端自动生成；当前 DevTools API 不提供单独的 SEO 设置写接口
 - 用户至少保留一个联系方式（邮箱或手机号）
 - 最后一位管理员不可降级
 - 管理员账号不可通过 DevTools 删除

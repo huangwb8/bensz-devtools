@@ -24,7 +24,7 @@ metadata:
 把“人类的管理意图”稳定翻译为对 `bensz-channel` **DevTools API** 的一组受限操作：
 
 - 频道：列表 / 新增 / 修改 / 删除 / 顶栏显隐
-- 标签：列表 / 新增 / 修改 / 删除
+- 标签：列表 / 复用优先创建 / 新增 / 修改 / 删除
 - 文章：列表 / 查看 / 发布 / 修改 / 删除 / 发布状态 / 置顶 / 精华 / 标签关联
 - 评论：列表 / 修改可见性 / 删除
 - 用户：列表 / 修改资料和角色 / 删除普通用户
@@ -81,10 +81,22 @@ metadata:
    python3 scripts/client.py --env /path/to/.env articles list --published true
    ```
 
+4. **处理文章标签时的强制准则**
+   ```bash
+   python3 scripts/client.py tags list
+   python3 scripts/client.py tags ensure --name Laravel --description 'Laravel 相关文章'
+   python3 scripts/client.py articles create --channel-id 1 --title 标题 --body 正文 --published --tag-id 2
+   ```
+   规则：
+   - AI 为文章生成标签时，**必须先检查已有标签**，优先沿用语义一致的既有标签。
+   - 只有在现有标签里找不到合适项时，才允许新建标签。
+   - `tags ensure` 会先读取现有标签；若 `name`、`slug` 或 `public_id` 精确命中，则直接复用，否则再创建。
+
 ## 标识规则
 
 - `channels update/show/delete`：支持 **数值 ID / `public_id` / `slug`**
 - `tags update/delete`：支持 **数值 ID / `public_id` / `slug`**
+- `tags ensure`：按 **`slug` → `public_id` → `name`** 优先级复用已有标签，命中失败时再创建
 - `articles show/update/delete`：支持 **数值 ID / `public_id` / `slug`**
 - `articles list --tag-id`、`articles create/update --tag-id`：使用 **标签数值 ID**
 - `comments update/delete`：使用 **数值 ID**
@@ -98,6 +110,7 @@ metadata:
 | 新增频道并隐藏顶栏入口 | `channels create --name 公告 --icon 📢 --accent-color '#3b82f6' --show-in-top-nav false` |
 | 修改频道顶栏显隐 | `channels update --id 1 --show-in-top-nav true` |
 | 查看所有标签 | `tags list` |
+| 优先复用已有标签，不存在再创建 | `tags ensure --name Laravel --slug laravel --description 'Laravel 相关文章'` |
 | 新增标签 | `tags create --name Laravel --slug laravel --description 'Laravel 相关文章'` |
 | 查看文章列表 | `articles list --published true --featured true` |
 | 按标签筛选文章 | `articles list --tag-id 2 --published true` |
@@ -116,6 +129,9 @@ metadata:
 ## 服务端约束
 
 - `featured`（精华）频道只负责聚合展示，**不能**作为文章主频道
+- 公开页面与 RSS 链接当前统一以 `public_id` 作为规范外链；`slug` 仍可用于部分兼容访问，但不应再把它当作长期稳定外链
+- 标签 RSS 已由上游公开为 `/feeds/tags/{tag-public-id}.xml`；全站和频道 RSS 分别为 `/feeds/articles.xml`、`/feeds/channels/{channel-public-id}.xml`
+- 首页、频道页、文章页、RSS alternate、`robots.txt` 与 `sitemap.xml` 的 SEO 输出由服务端自动生成；当前 DevTools API **没有**单独暴露站点级 SEO 配置写接口
 - 用户更新时，邮箱与手机号至少保留一个
 - **最后一位管理员不可降级**
 - **管理员账号不可通过 DevTools 删除**
