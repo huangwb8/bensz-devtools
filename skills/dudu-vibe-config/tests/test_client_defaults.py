@@ -30,6 +30,8 @@ class SubscriptionCreateDefaultsTest(unittest.TestCase):
             model=None,
             reasoning_effort=None,
             thinking_mode=None,
+            derived_query=None,
+            derived_plan=None,
         )
 
         self.assertEqual(
@@ -52,6 +54,8 @@ class SubscriptionCreateDefaultsTest(unittest.TestCase):
             model="gpt-5.5-preview",
             reasoning_effort=None,
             thinking_mode=None,
+            derived_query=None,
+            derived_plan=None,
         )
 
         self.assertEqual(payload["ai"]["sdk"], "codex_cli")
@@ -69,6 +73,8 @@ class SubscriptionCreateDefaultsTest(unittest.TestCase):
             model="",
             reasoning_effort=None,
             thinking_mode=None,
+            derived_query=None,
+            derived_plan=None,
         )
 
         self.assertEqual(
@@ -91,9 +97,41 @@ class SubscriptionCreateDefaultsTest(unittest.TestCase):
             model=None,
             reasoning_effort=None,
             thinking_mode=None,
+            derived_query=None,
+            derived_plan=None,
         )
 
         self.assertEqual(payload["ai"], {"sdk": "claude_code"})
+
+    def test_create_payload_supports_manual_derived_query_and_plan(self) -> None:
+        payload = client._build_subscription_create_payload(
+            name="AI 搜索",
+            prompt='"agentic coding" OR codex',
+            frequency="daily",
+            tier="premium",
+            style="deep_research",
+            sdk="codex_cli",
+            model="",
+            reasoning_effort="high",
+            thinking_mode=None,
+            derived_query='"agentic coding" OR codex OR "claude code"',
+            derived_plan={
+                "source": "ai",
+                "version": "2026-03-25",
+                "promptHash": "abc123",
+                "derivedQuery": '"agentic coding" OR codex',
+                "booleanLines": ['"agentic coding" OR codex'],
+                "queryVariants": {
+                    "default": '"agentic coding" OR codex',
+                    "display": '"agentic coding" OR codex',
+                    "searxng": '"agentic coding" OR codex docs',
+                    "api": '"agentic coding" OR codex'
+                },
+            },
+        )
+
+        self.assertEqual(payload["derivedQuery"], '"agentic coding" OR codex OR "claude code"')
+        self.assertIn("derivedPlan", payload)
 
 
 class CliReliabilityTests(unittest.TestCase):

@@ -4,6 +4,28 @@
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-03-25
+
+### Added（新增）
+
+- 新增 `subscriptions parse-prompt` 命令，对齐最新 `POST /vibe/agent/subscriptions/:topicId/parse-prompt`
+- 新增检索式构建参数：`subscriptions create/update` 现支持 `--derived-query`、`--derived-plan-json`、`--derived-plan-file`
+- 新增 derived 刷新控制：`subscriptions update` 现支持 `--refresh-derived` / `--no-refresh-derived`
+- 新增本轮兼容升级计划：`plans/2026-03-25-vibe-search-builder-compat.md`
+- 扩充回归测试：覆盖最新 Vibe update 契约、旧 metadata 参数前置拒绝、以及 `parse-prompt` 新路由
+
+### Changed（变更）
+
+- 基于 2026-03-25 对 `/Volumes/2T01/winE/Starup/dudu` 最新 `/vibe/agent/*` 源码审计，更新 skill 口径：`subscriptions update` 已正式开放，不再是假想的前向兼容包装
+- `subscriptions update` 现在严格对齐当前 Vibe PATCH 契约：`name/prompt/frequency/ai/derivedQuery/derivedPlan/refreshDerived`
+- `README.md` 与 `SKILL.md` 同步更新为最新检索式构建工作流，并补充返回体中的 `derivedRefreshStatus / derivedQuery / derivedAt`
+
+### Fixed（修复）
+
+- 修复旧版 update CLI 会把 `tier/style/groupId/generationAi` 发送到最新服务端而触发 400 的契约漂移问题
+- 修复文档错误地宣称 `subscriptions update` 尚未开放的问题
+- 修复状态码说明：写请求缺失 `x-dudu-vibe-connection` 现在明确归类为 `400`，而不是笼统写成 `401`
+
 ## [0.4.0] - 2026-03-21
 
 ### Added（新增）

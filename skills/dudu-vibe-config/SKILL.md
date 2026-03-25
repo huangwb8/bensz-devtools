@@ -24,15 +24,17 @@ metadata:
 把“人类的配置意图”稳定地翻译成对 `dudu` **Vibe Agent API** 的一组受限操作（仅 `/vibe/agent/*`），以支持远程优化：
 
 - 模板：创建/删除
-- 订阅：当前服务实际支持创建/退订；客户端另提供前向兼容的 `subscriptions update` 包装，待服务端开放后启用
+- 订阅：创建/更新检索计划/主动刷新检索式/退订
 - 报道：触发生成/删除（支持生成时临时覆盖 AI 配置）
 - 域名规则：读取/更新（allowlist/blocklist/keywords）
 
-## 当前对齐状态（2026-03-21 审计）
+## 当前对齐状态（2026-03-25 审计）
 
-- 当前 `dudu` 最新 `/vibe/agent/*` 已开放：模板 `add/delete`、订阅 `create/delete`、报道 `generate/delete`、域名规则 `get/set`。
+- 当前 `dudu` 最新 `/vibe/agent/*` 已开放：模板 `add/delete`、订阅 `create/update/parse-prompt/delete`、报道 `generate/delete`、域名规则 `get/set`。
 - 模板创建请求已对齐 `sourceType=search|rss_opml` 与可选 `opml`。
-- `subscriptions update` / `generationAi` 更新目前仍是客户端前向兼容能力：字段模型已对齐主项目 `topics/:id` 与 `topics/:id/subscribe`（含 `groupId` / `generationAi`），如果服务端未开放路由，客户端只会返回 `unsupported_server_capability`，不会做危险的“删旧建新”兜底。
+- `subscriptions create/update` 已支持显式写入 `derivedQuery` / `derivedPlan`；若未显式提供，服务端会尝试刷新，并返回 `derivedRefreshStatus` / `derivedQuery` / `derivedAt`。
+- `subscriptions update` 当前只接受 `name/prompt/frequency/ai/derivedQuery/derivedPlan/refreshDerived` 这一组 **Vibe 专用字段**。
+- `groupId`、`generationAi`、`tier`、`style` 属于主站 `/topics` / `/topics/:id/subscribe` 语义，不是当前 Vibe PATCH 契约；当前 skill 会在本地显式拒绝这些旧参数，避免继续发出无效请求。
 - 所有写请求默认不自动重试，避免在超时或瞬时 5xx 后重复创建连接、模板、订阅等资源。
 - 新增订阅时，若用户未指定 AI 配置，当前 skill 默认按 `codex_cli + CLI/provider 默认模型 + medium` 创建；也就是 `sdk=codex_cli`、`model=""`、`reasoningEffort=medium`。若用户显式指定 `sdk/model/reasoning-effort`，则以用户参数为准。
 - 新增模板接口当前**不保存 AI 配置**；因此“新模板默认 SDK”只体现在后续基于该模板创建订阅/生成报道时的默认行为，不会伪造一个服务端并不存在的模板字段。
@@ -90,8 +92,9 @@ python3 scripts/client.py --dry-run domains set --reset --allowlist example.com
 - “屏蔽 bad.com”：`domains set --blocklist bad.com`
 - “添加关键词过滤 X”：`domains set --keywords X`
 - “新增一个每日订阅（未指定 AI 时默认 Codex CLI + CLI/provider 默认模型 + medium）”：`subscriptions create --frequency daily`
-- “把已有订阅切到 Codex CLI + 更高推理强度（当前服务会返回 `unsupported_server_capability`）”：`subscriptions update --topic-id ... --sdk codex_cli --reasoning-effort high`
-- “把手动生成默认模型改成 Claude，并清空分组（当前服务会返回 `unsupported_server_capability`）”：`subscriptions update --topic-id ... --generation-sdk claude --group-id default`
+- “把已有订阅切到 Codex CLI + 更高推理强度”：`subscriptions update --topic-id ... --sdk codex_cli --reasoning-effort high --refresh-derived`
+- “手工指定一份更稳定的检索计划”：`subscriptions update --topic-id ... --derived-query '...' --derived-plan-file /path/to/derived-plan.json`
+- “立刻重新解析这个订阅的 prompt”：`subscriptions parse-prompt --topic-id ...`
 - “用 Claude Code 建一个开发工具类订阅”：`subscriptions create --frequency daily --sdk claude_code --thinking-mode thinking`
 - “新增一个 RSS 模板”：`templates add --source-type rss_opml --opml '<opml ...>' ...`
 - “新增一个模板”：`templates add ...`（模板本身不持久化 AI 配置；若随后要按默认 AI 落地订阅，则默认使用 `codex_cli + CLI/provider 默认模型 + medium`，除非用户另行指定）
@@ -100,10 +103,24 @@ python3 scripts/client.py --dry-run domains set --reset --allowlist example.com
 
 ## 订阅更新兼容策略
 
-- `subscriptions update` 的参数语义对齐 `dudu` 最新源码中的 `PUT /topics/:id` 与 `POST /topics/:id/subscribe`
+- `subscriptions update` 现在直接对齐 `PATCH /vibe/agent/subscriptions/:topicId`
 - 客户端会优先尝试 `PATCH /vibe/agent/subscriptions/:topicId`，再回退尝试 `PUT /vibe/agent/subscriptions/:topicId`
-- 若当前 dudu 服务仍未暴露该能力，客户端会输出结构化 `unsupported_server_capability`
+- 若当前 dudu 服务未暴露该能力，客户端会输出结构化 `unsupported_server_capability`
+- 若用户传入当前 Vibe 契约不支持的旧字段（`groupId` / `generationAi` / `tier` / `style`），客户端会在本地直接给出结构化拒绝
 - **不会** 自动走“删除旧订阅 + 新建订阅”的危险兜底，因为那会改变 topic id，并可能丢失历史报道/进度/引用关系
+
+## 检索式构建控制
+
+- `subscriptions create/update` 支持 `--derived-query`
+- `subscriptions create/update` 支持 `--derived-plan-json` / `--derived-plan-file`
+- `subscriptions update` 支持 `--refresh-derived` / `--no-refresh-derived`
+- `subscriptions parse-prompt` 用于“按当前或临时 AI 设置，立即重建 derived_*”
+
+建议：
+
+- 简单场景只传 `--prompt`，让服务端自动刷新检索计划
+- 需要稳定复现多后端检索行为时，优先通过 `--derived-plan-file` 传入完整 JSON
+- 若只是 prompt 改了，或想立即修复 `derived_*` 失配，优先用 `subscriptions parse-prompt`
 
 ## 订阅提示词策略
 
@@ -159,9 +176,9 @@ python3 scripts/client.py subscriptions create \
 
 ## 失败处理（必须执行）
 
-- 400：参数或请求体不符合服务端校验规则 → 原样输出 JSON 错误并停止
+- 400：参数或请求体不符合服务端校验规则；也包括写请求缺失 `x-dudu-vibe-connection` → 原样输出 JSON 错误并停止
 - 401：可能是 Key/URL 错误、Key 被吊销，或 `x-dudu-vibe-connection` 无效/失效 → 停止并检查 Key/连接状态
-- 404：资源不存在，或当前服务端尚未开放对应路由（如 `subscriptions update`） → 原样输出并停止
+- 404：资源不存在，或当前服务端确实没有对应路由 → 原样输出并停止
 - 409 terminate_requested：用户已在 Web 端终止连接 → 立刻停止并断开
 - 202：请求已入队（主要出现在 `reports generate`）→ 视为成功
 - 5xx / 超时：GET 类请求最多重试 2 次；写请求不自动重试，避免重复写入

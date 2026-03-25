@@ -6,15 +6,17 @@
 
 - 批量维护域名规则（allowlist/blocklist/keywords）
 - 创建/删除模板（Templates）
-- 创建/退订订阅（Subscriptions），并可显式指定主题 AI
+- 创建/更新/退订订阅（Subscriptions），并可显式指定主题 AI 与检索式构建结果
+- 主动刷新订阅的 `derivedQuery / derivedPlan`
 - 触发生成报道、删除报道（Reports），并可在生成时临时覆盖 AI 配置
 
-## 当前对齐状态（2026-03-21 审计）
+## 当前对齐状态（2026-03-25 审计）
 
-- 当前 `dudu` 最新 `/vibe/agent/*` 实际开放的能力：模板 `add/delete`、订阅 `create/delete`、报道 `generate/delete`、域名规则 `get/set`，以及 `ping/connect/heartbeat/disconnect`。
+- 当前 `dudu` 最新 `/vibe/agent/*` 实际开放的能力：模板 `add/delete`、订阅 `create/update/parse-prompt/delete`、报道 `generate/delete`、域名规则 `get/set`，以及 `ping/connect/heartbeat/disconnect`。
 - 模板创建已支持 `sourceType=search|rss_opml` 与可选 `opml`；当前 skill 已对齐该请求体。
-- `subscriptions update` 与 `generationAi` 更新目前属于客户端的**前向兼容封装**：参数语义已按主项目 `topics/:id` / `topics/:id/subscribe`（含 `groupId` / `generationAi`）模型对齐，但当前服务端尚未开放对应 `/vibe/agent/subscriptions/:topicId` 路由。
-- 当服务端尚未开放更新路由时，客户端会返回结构化 `unsupported_server_capability`，不会用“删除重建订阅”的方式做危险兜底。
+- `subscriptions create/update` 现已支持显式写入 `derivedQuery` / `derivedPlan`；若不显式提供，服务端会按当时可用 AI 环境尝试刷新，并在返回体中带回 `derivedRefreshStatus`、`derivedQuery`、`derivedAt`。
+- `subscriptions update` 当前只对齐 **Vibe 专用契约**：`name/prompt/frequency/ai/derivedQuery/derivedPlan/refreshDerived`。
+- `groupId`、`generationAi`、`tier`、`style` 属于主站 `/topics` / `/topics/:id/subscribe` 语义，不是当前 Vibe PATCH 契约；本 skill 现会在本地明确拒绝这些旧参数，避免继续把请求打成 400。
 - 所有写请求默认**不自动重试**，避免在超时或瞬时 5xx 后重复创建连接、模板或订阅。
 - 新增订阅时，如未显式指定 AI 配置，CLI 默认会发送 `codex_cli + CLI/provider 默认模型 + medium`；也就是 `sdk=codex_cli`、`model=""`、`reasoningEffort=medium`。若你明确传入 `--sdk/--model/--reasoning-effort`，则以显式参数为准。
 - 新增模板接口当前只保存模板元数据，不保存 AI 配置；因此“默认 SDK”只会作用在后续基于该模板创建订阅时，不会额外写入不存在的模板字段。
@@ -74,7 +76,7 @@ python3 scripts/client.py doctor --watch-seconds 120
 
 说明：`doctor`/`doctor --watch-seconds` 输出为 JSON（或多条 JSON），便于在工具调用中稳定解析；若 Web 端触发终止，会输出 `terminate_requested=true` 并以退出码 0 结束。若你的订阅走 `claude_code` / `codex_cli`，宿主环境仍需在 dudu 主项目侧启用对应 CLI provider / MCP 能力，否则服务端会按主项目当前策略回退。
 
-兼容性提醒：`subscriptions update` 的字段模型已按 `dudu` 最新 `topics/:id` + `topics/:id/subscribe` 语义对齐，但当前最新 `dudu` 源码里的 `/vibe/agent/*` 仍未提供订阅更新路由。为避免“删除重建订阅”导致 topic/report 历史丢失，本 skill 遇到当前服务时会返回结构化 `unsupported_server_capability`，而不会做破坏性兜底。
+兼容性提醒：`subscriptions update` 现在是真正落到最新 `/vibe/agent/subscriptions/:topicId` 的，而不是旧的“前向兼容包装”。如果你传入当前 Vibe 契约不支持的旧字段（如 `--group-id`、`--generation-*`、`--tier`、`--style`），CLI 会在本地输出结构化 `unsupported_server_capability`，避免把请求直接打坏。
 
 ```bash
 # 域名规则（读取）
@@ -98,9 +100,16 @@ python3 scripts/client.py templates delete --id <template-id>
 # 未传 AI 参数时，默认创建为 codex_cli + CLI/provider 默认模型 + medium
 python3 scripts/client.py subscriptions create --name "订阅名" --prompt "订阅提示词" --frequency daily
 python3 scripts/client.py subscriptions create --name "开发工具追踪" --prompt "跟踪 Claude Code / Codex CLI / MCP 更新" --frequency daily --sdk claude_code --reasoning-effort medium --thinking-mode thinking
-# 当前服务端尚未开放 update 路由；以下命令目前会返回 unsupported_server_capability
-python3 scripts/client.py subscriptions update --topic-id <topic-uuid> --sdk codex_cli --model "" --reasoning-effort high
-python3 scripts/client.py subscriptions update --topic-id <topic-uuid> --tier premium --style deep_research --generation-sdk claude --generation-thinking-mode thinking
+# 创建时显式写入检索式 / 检索计划
+python3 scripts/client.py subscriptions create --name "AI 安全" --prompt '"AI safety" OR alignment' --frequency daily --derived-query '"AI safety" OR alignment OR "model safety"' --derived-plan-file /path/to/derived-plan.json
+# 更新订阅，并提示服务端刷新 derived_*
+python3 scripts/client.py subscriptions update --topic-id <topic-uuid> --prompt '"agentic coding" OR codex OR "claude code"' --refresh-derived
+# 直接写入手工检索计划，不依赖当下 AI 刷新
+python3 scripts/client.py subscriptions update --topic-id <topic-uuid> --derived-query '"agentic coding" OR codex' --derived-plan-json '{"source":"ai","version":"2026-03-25","promptHash":"...","derivedQuery":"\"agentic coding\" OR codex"}'
+# 主动重新解析 prompt，可附带临时 AI 配置
+python3 scripts/client.py subscriptions parse-prompt --topic-id <topic-uuid> --sdk claude --model claude-sonnet-4-5 --thinking-mode thinking
+# 旧的 metadata/generation 参数不属于当前 Vibe PATCH 契约，会被本地拒绝
+python3 scripts/client.py subscriptions update --topic-id <topic-uuid> --generation-sdk claude
 python3 scripts/client.py --dry-run subscriptions update --topic-id <topic-uuid> --prompt '"agentic coding" OR codex OR "claude code"' --frequency '{"type":"custom","interval_seconds":21600}'
 python3 scripts/client.py subscriptions delete --topic-id <topic-uuid>
 
@@ -118,14 +127,16 @@ python3 scripts/client.py reports delete --topic-id <topic-uuid> --report-id <re
 ## 订阅更新字段说明
 
 - 主题级字段：`--name`、`--prompt`、`--frequency`、`--sdk`、`--model`、`--reasoning-effort`、`--thinking-mode`
-- 订阅偏好字段：`--tier`、`--style`、`--group-id`
-- 手动“生成报道”默认 AI：`--generation-sdk`、`--generation-model`、`--generation-reasoning-effort`、`--generation-thinking-mode`
-- 清空生成偏好：`--clear-generation-ai`
+- 检索式字段：`--derived-query`、`--derived-plan-json`、`--derived-plan-file`
+- 刷新控制：`--refresh-derived`、`--no-refresh-derived`
+- 主动刷新命令：`subscriptions parse-prompt`
 
 说明：
 - `--model ""` 仍表示“使用 provider / CLI 默认模型”。
-- `--group-id default` 或 `--group-id null` 会清空分组，回到默认组。
 - `--frequency` 同时支持 `hourly|daily|weekly` 和 `{"type":"custom","interval_seconds":...}`。
+- `derivedPlan` 推荐通过 `--derived-plan-file` 传入完整 JSON，适合包含 `booleanLines`、`queryVariants.mcp`、`keywords`、`coreQuestions` 等较长结构。
+- 若你只是想“用当前或临时 AI 重新生成一版检索计划”，优先使用 `subscriptions parse-prompt`。
+- `--tier`、`--style`、`--group-id`、`--generation-*`、`--clear-generation-ai` 不属于当前 Vibe PATCH 契约；CLI 会显式拒绝它们，而不是继续向服务端发送无效 payload。
 
 ## 新增订阅默认 AI
 
@@ -147,9 +158,9 @@ python3 scripts/client.py reports delete --topic-id <topic-uuid> --report-id <re
 
 - `200`：请求已完成。
 - `202`：请求已入队，当前主要出现在 `reports generate`。
-- `400`：参数或请求体不符合服务端校验规则。
-- `401`：可能是 `x-dudu-vibe-key` 无效，也可能是 `x-dudu-vibe-connection` 缺失/失效。
-- `404`：资源不存在，或当前服务端尚未开放对应路由（例如 `subscriptions update`）。
+- `400`：参数或请求体不符合服务端校验规则；也包括缺失 `x-dudu-vibe-connection` 的写请求。
+- `401`：`x-dudu-vibe-key` 无效，或 `x-dudu-vibe-connection` 无效/失效。
+- `404`：资源不存在。
 - `409`：Web 端已经终止当前连接，返回 `terminate_requested`。
 - `5xx` / 超时：服务端或网络异常；本 skill 对写请求不会自动重试，避免重复写入。
 - 非 HTTP 网络失败：CLI 会输出结构化 `transport_error` JSON，而不是 Python traceback。
