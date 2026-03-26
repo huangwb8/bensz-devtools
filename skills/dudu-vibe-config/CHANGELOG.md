@@ -4,6 +4,25 @@
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-03-26
+
+### Added（新增）
+
+- 新增 `scripts/_local_derive.py` 与 `scripts/local_derive.py`：可通过本地 `codex` / `claude` CLI 生成 `derivedQuery / derivedPlan`
+- 新增 `subscriptions create/update --local-derived-script`：把“本地生成 derived_* + 写回 dudu”合并为一条命令
+- 新增 `docs/local-derived-workflow.md`：明确 AI 宿主型本地生成与脚本自驱型本地生成两条工作流
+- 新增回归测试：覆盖本地 derived 规范化、runner 选择，以及 `client.py` 中的 `--local-derived-script` 接线
+
+### Changed（变更）
+
+- 将默认策略从“简单场景只传 `--prompt`，服务端自行刷新 derived_*”调整为“优先 AI 宿主型本地生成，再显式写回 dudu”
+- `README.md` 与 `SKILL.md` 同步更新为双模式本地 derived 工作流：默认 `host_ai`，可选 `script_local_ai`
+- `config.yaml` 升级到 `0.6.0`，新增本地 derived 的默认模式、runner 与 timeout 配置
+
+### Fixed（修复）
+
+- 修复当 dudu 主项目未配置好 AI/provider 时，skill 侧无法稳定生成 subscription `derived_*` 的默认路径依赖问题
+
 ## [0.5.0] - 2026-03-25
 
 ### Added（新增）

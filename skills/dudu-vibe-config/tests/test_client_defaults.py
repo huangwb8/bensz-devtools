@@ -18,6 +18,22 @@ import client  # noqa: E402
 from _vibe_env import VibeEnv, resolve_vibe_env  # noqa: E402
 
 
+def _parse_json_stream(raw: str) -> list[dict]:
+    decoder = json.JSONDecoder()
+    idx = 0
+    payloads: list[dict] = []
+    text = raw.strip()
+    while idx < len(text):
+        while idx < len(text) and text[idx].isspace():
+            idx += 1
+        if idx >= len(text):
+            break
+        obj, next_idx = decoder.raw_decode(text, idx)
+        payloads.append(obj)
+        idx = next_idx
+    return payloads
+
+
 class SubscriptionCreateDefaultsTest(unittest.TestCase):
     def test_create_payload_defaults_to_codex_cli_cli_default_model_medium(self) -> None:
         payload = client._build_subscription_create_payload(
@@ -166,6 +182,88 @@ class CliReliabilityTests(unittest.TestCase):
         payload = json.loads(stdout.getvalue())
         self.assertEqual(payload["error"], "transport_error")
         self.assertIn("connection refused", payload["message"])
+
+    def test_local_derived_script_create_injects_generated_query_and_plan(self) -> None:
+        vibe = VibeEnv(url="http://localhost:3001", key="", url_source="default", key_source="missing")
+        stdout = io.StringIO()
+        with patch.object(client, "resolve_vibe_env", return_value=vibe), patch.object(
+            client,
+            "derive_locally",
+            return_value=type(
+                "LocalDeriveResultStub",
+                (),
+                {
+                    "derived_query": '"agentic coding"\nCodex CLI',
+                    "derived_plan": {
+                        "version": "topic-search-plan-v2",
+                        "promptTemplateId": "topic_search_plan",
+                        "promptHash": "abc123",
+                        "source": "ai",
+                        "derivedQuery": '"agentic coding"\nCodex CLI',
+                        "booleanLines": ['"agentic coding"', "Codex CLI"],
+                        "queryVariants": {
+                            "default": '("agentic coding") AND (Codex CLI)',
+                            "display": '"agentic coding"\nCodex CLI',
+                            "searxng": '"agentic coding" Codex CLI',
+                            "api": '"agentic coding"\nCodex CLI',
+                            "mcp": {
+                                "default": '("agentic coding") AND (Codex CLI)',
+                                "search_query": '("agentic coding") AND (Codex CLI)',
+                                "tavily": '"agentic coding" Codex CLI',
+                                "serper": '"agentic coding" Codex CLI',
+                                "duckduckgo": '"agentic coding" Codex CLI',
+                                "brave": '("agentic coding") AND (Codex CLI)',
+                                "searxng": '"agentic coding" Codex CLI',
+                            },
+                        },
+                        "keywords": ["agentic coding"],
+                        "coreQuestions": ["What changed?"],
+                        "qualityIssues": [],
+                    },
+                },
+            )(),
+        ):
+            with contextlib.redirect_stdout(stdout):
+                code = client.main(
+                    [
+                        "--dry-run",
+                        "subscriptions",
+                        "create",
+                        "--name",
+                        "开发工具追踪",
+                        "--prompt",
+                        "跟踪 Codex CLI 更新",
+                        "--frequency",
+                        "daily",
+                        "--local-derived-script",
+                    ]
+                )
+
+        self.assertEqual(code, 0)
+        payload = next(
+            item
+            for item in _parse_json_stream(stdout.getvalue())
+            if item.get("url") == "http://localhost:3001/vibe/agent/subscriptions"
+        )
+        self.assertEqual(payload["json_body"]["derivedQuery"], '"agentic coding"\nCodex CLI')
+        self.assertIn("derivedPlan", payload["json_body"])
+
+    def test_local_derived_script_update_requires_prompt(self) -> None:
+        vibe = VibeEnv(url="http://localhost:3001", key="", url_source="default", key_source="missing")
+        with patch.object(client, "resolve_vibe_env", return_value=vibe):
+            with self.assertRaises(SystemExit) as ctx:
+                client.main(
+                    [
+                        "--dry-run",
+                        "subscriptions",
+                        "update",
+                        "--topic-id",
+                        "11111111-1111-1111-1111-111111111111",
+                        "--local-derived-script",
+                    ]
+                )
+
+        self.assertIn("requires --prompt", str(ctx.exception))
 
 
 class EnvCompatibilityTests(unittest.TestCase):

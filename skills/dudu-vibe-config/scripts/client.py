@@ -10,6 +10,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterator
 
+from _local_derive import RUNNER_CHOICES, derive_locally
 from _flat_yaml import load_flat_yaml
 from _http_json import HttpResult, request_json
 from _redact import redact_secret
@@ -55,6 +56,9 @@ def _config() -> dict[str, Any]:
         "default_subscription_ai_sdk": default_subscription_ai_sdk,
         "default_subscription_ai_model": default_subscription_ai_model,
         "default_subscription_ai_reasoning_effort": default_subscription_ai_reasoning_effort,
+        "default_local_derived_mode": str(cfg.scalars.get("default_local_derived_mode", "host_ai")).strip() or "host_ai",
+        "default_local_derived_runner": str(cfg.scalars.get("default_local_derived_runner", "auto")).strip() or "auto",
+        "local_derived_timeout_seconds": int(cfg.scalars.get("local_derived_timeout_seconds", "180")),
     }
 
 
@@ -529,6 +533,37 @@ def _build_subscription_update_payload(
     return payload
 
 
+def _resolve_local_derived(
+    *,
+    enabled: bool,
+    prompt: str | None,
+    topic_name: str | None,
+    derived_query: str | None,
+    derived_plan: Any | None,
+    runner: str | None,
+    model: str | None,
+    effort: str | None,
+    timeout_seconds: int | None,
+) -> tuple[str | None, Any | None]:
+    if not enabled:
+        return derived_query, derived_plan
+    cfg = _config()
+    if derived_query is not None or derived_plan is not None:
+        raise SystemExit("Do not combine --local-derived-script with explicit --derived-query / --derived-plan-*.")
+    normalized_prompt = str(prompt or "").strip()
+    if not normalized_prompt:
+        raise SystemExit("Local derived script mode requires --prompt.")
+    result = derive_locally(
+        prompt=normalized_prompt,
+        topic_name=str(topic_name or "").strip() or None,
+        runner=str(runner or cfg["default_local_derived_runner"]),
+        model=model,
+        effort=effort,
+        timeout_seconds=int(timeout_seconds or cfg["local_derived_timeout_seconds"]),
+    )
+    return result.derived_query, result.derived_plan
+
+
 def _unique_merge(existing: list[str], incoming: list[str]) -> list[str]:
     seen: set[str] = set()
     out: list[str] = []
@@ -963,6 +998,11 @@ def main(argv: list[str]) -> int:
     sc.add_argument("--derived-query", default=None, help="显式指定展示用 derivedQuery。")
     sc.add_argument("--derived-plan-json", default=None, help="显式指定 derivedPlan JSON 字符串。")
     sc.add_argument("--derived-plan-file", default=None, help="从 JSON 文件读取 derivedPlan。")
+    sc.add_argument("--local-derived-script", action="store_true", help="使用本地 codex/claude CLI 先生成 derived_*，再写回 dudu。")
+    sc.add_argument("--local-derived-runner", default=None, choices=RUNNER_CHOICES, help="本地 derived 生成 runner；默认按 config/auto 选择。")
+    sc.add_argument("--local-derived-model", default=None, help="本地 derived 生成的模型覆盖。")
+    sc.add_argument("--local-derived-effort", default=None, help="本地 derived 生成的 effort/reasoning 设置。")
+    sc.add_argument("--local-derived-timeout", type=int, default=None, help="本地 derived 生成超时秒数。")
     su = subs_sub.add_parser("update")
     su.add_argument("--topic-id", required=True)
     su.add_argument("--name", default=None)
@@ -983,6 +1023,12 @@ def main(argv: list[str]) -> int:
     su.add_argument("--derived-query", default=None, help="显式指定展示用 derivedQuery。")
     su.add_argument("--derived-plan-json", default=None, help="显式指定 derivedPlan JSON 字符串。")
     su.add_argument("--derived-plan-file", default=None, help="从 JSON 文件读取 derivedPlan。")
+    su.add_argument("--local-derived-script", action="store_true", help="使用本地 codex/claude CLI 先生成 derived_*，再写回 dudu。")
+    su.add_argument("--local-derived-runner", default=None, choices=RUNNER_CHOICES, help="本地 derived 生成 runner；默认按 config/auto 选择。")
+    su.add_argument("--local-derived-model", default=None, help="本地 derived 生成的模型覆盖。")
+    su.add_argument("--local-derived-effort", default=None, help="本地 derived 生成的 effort/reasoning 设置。")
+    su.add_argument("--local-derived-timeout", type=int, default=None, help="本地 derived 生成超时秒数。")
+    su.add_argument("--local-derived-topic-name", default=None, help="更新时若未同时改名，可显式提供 topic 名辅助本地生成。")
     su_refresh = su.add_mutually_exclusive_group()
     su_refresh.add_argument("--refresh-derived", dest="refresh_derived", action="store_true", help="提示服务端在允许时刷新 derived_*。")
     su_refresh.add_argument("--no-refresh-derived", dest="refresh_derived", action="store_false", help="提示服务端本次跳过 derived_* 刷新。")
@@ -1097,6 +1143,17 @@ def main(argv: list[str]) -> int:
                     file_path=args.derived_plan_file,
                     name="derived-plan",
                 )
+                derived_query, derived_plan = _resolve_local_derived(
+                    enabled=bool(args.local_derived_script),
+                    prompt=args.prompt,
+                    topic_name=args.name,
+                    derived_query=args.derived_query,
+                    derived_plan=derived_plan,
+                    runner=args.local_derived_runner,
+                    model=args.local_derived_model,
+                    effort=args.local_derived_effort,
+                    timeout_seconds=args.local_derived_timeout,
+                )
                 return cmd_subscriptions_create(
                     vibe,
                     timeout_seconds,
@@ -1109,7 +1166,7 @@ def main(argv: list[str]) -> int:
                     args.model,
                     args.reasoning_effort,
                     args.thinking_mode,
-                    args.derived_query,
+                    derived_query,
                     derived_plan,
                 )
             if args.subs_cmd == "update":
@@ -1117,6 +1174,17 @@ def main(argv: list[str]) -> int:
                     inline_json=args.derived_plan_json,
                     file_path=args.derived_plan_file,
                     name="derived-plan",
+                )
+                derived_query, derived_plan = _resolve_local_derived(
+                    enabled=bool(args.local_derived_script),
+                    prompt=args.prompt,
+                    topic_name=args.name or args.local_derived_topic_name,
+                    derived_query=args.derived_query,
+                    derived_plan=derived_plan,
+                    runner=args.local_derived_runner,
+                    model=args.local_derived_model,
+                    effort=args.local_derived_effort,
+                    timeout_seconds=args.local_derived_timeout,
                 )
                 return cmd_subscriptions_update(
                     vibe,
@@ -1137,7 +1205,7 @@ def main(argv: list[str]) -> int:
                     generation_thinking_mode=args.generation_thinking_mode,
                     group_id=args.group_id,
                     clear_generation_ai=bool(args.clear_generation_ai),
-                    derived_query=args.derived_query,
+                    derived_query=derived_query,
                     derived_plan=derived_plan,
                     refresh_derived=args.refresh_derived,
                 )
