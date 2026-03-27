@@ -43,12 +43,15 @@ metadata:
 - 不输出完整 Key；日志中必须脱敏（仅显示前缀）
 - 所有变更类请求（POST / PUT / PATCH / DELETE）默认使用 `connect → 执行 → disconnect` 闭环
 - 所有变更类请求一旦发出，**禁止**把“再次执行一次”当作测试或确认手段；结果不确定时只能暂停等待，然后用只读命令回查
+- 客户端默认启用“保守重试”策略：非幂等写操作默认不自动重试；仅 `articles create` 在携带幂等键时允许自动重试
 - 若服务端 heartbeat 返回 `terminate: true`：立刻停止操作并 disconnect
 - `ping` 可无 KEY 执行；`doctor` 和所有鉴权接口必须带 KEY
 
 ## 高风险发布规则（强制）
 
 - `articles create`、`articles update --published true`、`articles delete` 属于**高风险不可逆操作**：可能触发 RSS、邮件订阅、Webhook 或外部索引收录。
+- `articles create` 默认自动附带确定性 `X-Idempotency-Key`（同 URL + 同 payload 生成同一个 key），用于降低网络抖动导致的重复发文风险。
+- 需要跨终端 / 跨会话对齐时，可显式传入 `--idempotency-key <key>` 覆盖自动 key。
 - 对这些操作，**任何时间都不允许为了测试链路而额外发布/删除/重发文章**。
 - 若终端输出延迟、会话返回不稳定、网络疑似抖动，默认视为“请求可能已被服务端接受”，**不要重试**。
 - 正确做法只有两步：
@@ -145,6 +148,7 @@ metadata:
 | 查看文章列表 | `articles list --published true --featured true` |
 | 按标签筛选文章 | `articles list --tag-id 2 --published true` |
 | 发布文章并绑定标签 | `articles create --channel-id 1 --title 标题 --body 正文 --published --tag-id 2 --tag-id 5` |
+| 发布文章并手动指定幂等键 | `articles create --channel-id 1 --title 标题 --body 正文 --published --idempotency-key release-20260327-a1` |
 | 发布文章并置顶 | `articles create --channel-id 1 --title 标题 --body 正文 --published --pinned` |
 | 发布文章并设为精华 | `articles create --channel-id 1 --title 标题 --body 正文 --published --featured` |
 | 将文章切换频道 | `articles update --id 42 --channel-id 3` |
@@ -198,3 +202,5 @@ metadata:
 | DELETE | `/users/{user}` | 删除普通用户 |
 
 认证方式：请求头 `X-Devtools-Key: <你的密钥>`
+
+补充：`articles create` 支持 `X-Idempotency-Key`；skill 默认自动注入，也可通过 CLI 参数手动指定。

@@ -11,9 +11,13 @@ The format is based on Keep a Changelog.
 - 同步更新目录名、文档标题、配置元数据、CLI 默认标识与命令示例。
 - 在 `SKILL.md` 与 `README.md` 中新增“发布安全红线 / 高风险发布规则”：
   对 `articles create/update/delete` 等可能触发 RSS、邮件订阅的真实内容操作，结果不确定时禁止重试、禁止额外测试、禁止通过更换 `slug` 或轻微改标题重复发文，只允许暂停等待并使用只读命令回查。
+- 客户端新增“保守重试”默认策略：非幂等写操作（POST/PUT/PATCH/DELETE）默认不自动重试；仅 `articles create` 在携带幂等键时允许自动重试。
+- `articles create` 现默认自动附带确定性 `X-Idempotency-Key`，并支持 `--idempotency-key` 手动覆盖，用于降低网络抖动或重复执行命令导致的重复发文风险。
+- `config.yaml` 新增 `write_retry_count`、`article_create_idempotency_enabled`、`article_create_retry_with_idempotency` 与 `article_create_idempotency_prefix` 配置项，并将版本提升到 `1.4.0`。
 
 ### Fixed（修复）
 - 修复 skill 工作流设计缺陷：此前未把“发布类操作不可用来测试链路，终端返回不稳定时应等待并回查”写成硬规则，可能导致重复文章被推送到订阅流。
+- 修复 CLI 行为与安全规则不一致问题：此前代码层面对写操作仍存在自动重试，和“发布结果不确定时不要重试”的策略冲突。
 
 ## [1.3.0] - 2026-03-24
 

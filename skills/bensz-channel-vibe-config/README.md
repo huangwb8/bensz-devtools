@@ -97,6 +97,7 @@ python3 scripts/client.py articles create \
   --title "Hello World" \
   --body "这是正文内容" \
   --published \
+  --idempotency-key "release-20260327-article-001" \
   --tag-id 2 \
   --tag-id 7 \
   --pinned
@@ -137,6 +138,9 @@ python3 scripts/client.py --env /path/to/.env channels list
 
 - `articles create`、`articles update --published true`、`articles delete` 会影响真实内容流，可能触发 RSS、邮件订阅或外部收录。
 - 因此，**不要**为了测试链路或确认接口状态去多发一篇“占位文章”“测试文章”或“同文不同 slug 的重复文章”。
+- 客户端已启用“写操作保守策略”：除 `articles create` 外，`POST/PUT/PATCH/DELETE` 默认不自动重试。
+- `articles create` 会自动附带确定性 `X-Idempotency-Key`（同 URL + 同 payload 会得到同一个键），仅在该幂等键存在时才允许自动重试。
+- 如需跨终端显式对齐同一次发布，可手动指定 `--idempotency-key <key>` 覆盖自动生成值。
 - 如果一次发布后终端输出不完整、执行会话卡住、网络看起来不稳定，默认把它当成“服务端可能已经成功接收”的情况处理。
 - 这时只做两件事：
   1. 暂停等待一会，不做新的写操作
@@ -161,6 +165,7 @@ python3 scripts/client.py --env /path/to/.env channels list
 - 最后一位管理员不可降级
 - 管理员账号不可通过 DevTools 删除
 - `doctor` 在 heartbeat 非 200 或服务端要求 terminate 时会返回失败
+- `articles create` 支持请求头 `X-Idempotency-Key`（skill 默认自动附带；也可通过 `--idempotency-key` 手动覆盖）
 
 ## 故障排查
 

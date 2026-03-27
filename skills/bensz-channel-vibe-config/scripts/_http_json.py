@@ -44,8 +44,18 @@ def request_json(
         data = json.dumps(json_body).encode("utf-8")
         hdrs.setdefault("content-type", "application/json")
 
+    method_upper = method.upper().strip()
+    has_idempotency_key = any(
+        key.lower() == "x-idempotency-key" and str(value).strip() != ""
+        for key, value in hdrs.items()
+    )
+    # Safety guard: never blind-retry non-idempotent writes unless caller explicitly provides idempotency key.
+    effective_retries = retries
+    if method_upper in {"POST", "PUT", "PATCH", "DELETE"} and not has_idempotency_key:
+        effective_retries = 0
+
     last_err: Exception | None = None
-    for attempt in range(retries + 1):
+    for attempt in range(effective_retries + 1):
         if attempt > 0:
             time.sleep(backoff_seconds * (2 ** (attempt - 1)))
         try:
@@ -82,7 +92,7 @@ def request_json(
                 parsed_json = None
             status = int(e.code)
             retryable = status in {408, 429} or 500 <= status <= 599
-            if retryable and attempt < retries:
+            if retryable and attempt < effective_retries:
                 last_err = e
                 continue
             return HttpResult(status=status, headers=header_map, body_text=body, json=parsed_json)
@@ -90,4 +100,4 @@ def request_json(
             last_err = e
             continue
 
-    raise RuntimeError(f"request failed after {retries + 1} attempts: {last_err!r}")
+    raise RuntimeError(f"request failed after {effective_retries + 1} attempts: {last_err!r}")

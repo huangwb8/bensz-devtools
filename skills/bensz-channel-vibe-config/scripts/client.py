@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import platform
 import sys
@@ -24,14 +25,25 @@ def _skill_root() -> Path:
 
 def _config() -> dict[str, Any]:
     cfg = load_flat_yaml(_skill_root() / "config.yaml")
+    idempotency_enabled_raw = str(cfg.scalars.get("article_create_idempotency_enabled", "true")).strip().lower()
     return {
         "name": cfg.scalars.get("skill_name", "bensz-channel-vibe-config"),
         "version": cfg.scalars.get("skill_version", "1.0.0"),
         "timeout": int(cfg.scalars.get("request_timeout_seconds", "15")),
+        "write_retry_count": int(cfg.scalars.get("write_retry_count", "0")),
+        "article_create_idempotency_enabled": idempotency_enabled_raw in {"1", "true", "yes", "on"},
+        "article_create_retry_with_idempotency": int(cfg.scalars.get("article_create_retry_with_idempotency", "2")),
+        "article_create_idempotency_prefix": str(cfg.scalars.get("article_create_idempotency_prefix", "bdc-article-create-v1")).strip() or "bdc-article-create-v1",
     }
 
 
-def _headers(env: BdcEnv, *, connection_id: str | None = None, include_auth: bool = True) -> dict[str, str]:
+def _headers(
+    env: BdcEnv,
+    *,
+    connection_id: str | None = None,
+    include_auth: bool = True,
+    idempotency_key: str | None = None,
+) -> dict[str, str]:
     cfg = _config()
     headers = {
         "user-agent": f"{cfg['name']}/{cfg['version']} ({platform.system()} {platform.release()})",
@@ -40,6 +52,8 @@ def _headers(env: BdcEnv, *, connection_id: str | None = None, include_auth: boo
         headers["x-devtools-key"] = env.key
     if connection_id:
         headers["x-bdc-connection"] = connection_id
+    if idempotency_key:
+        headers["x-idempotency-key"] = idempotency_key
     return headers
 
 
@@ -57,6 +71,25 @@ def _url_with_query(env: BdcEnv, path: str, params: dict[str, Any]) -> str:
     return _url(env, path) + "?" + urlencode(filtered)
 
 
+def _write_retries() -> int:
+    return max(0, int(_config()["write_retry_count"]))
+
+
+def _stable_json(payload: Any) -> str:
+    return json.dumps(payload, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+
+
+def _build_article_create_idempotency_key(env: BdcEnv, payload: dict[str, Any]) -> str:
+    cfg = _config()
+    material = {
+        "url": normalize_base_url(env.url),
+        "path": "/api/vibe/articles",
+        "payload": payload,
+    }
+    digest = hashlib.sha256(_stable_json(material).encode("utf-8")).hexdigest()
+    return f"{cfg['article_create_idempotency_prefix']}-{digest[:32]}"
+
+
 def _call(
     method: str,
     url: str,
@@ -67,11 +100,17 @@ def _call(
     retries: int,
 ) -> HttpResult:
     if DRY_RUN:
+        dry_run_headers = {}
+        for header_name in ("x-bdc-connection", "x-idempotency-key"):
+            if header_name in headers:
+                dry_run_headers[header_name] = headers[header_name]
         _print_json({
             "dry_run": True,
             "method": method.upper(),
             "url": url,
             "json_body": json_body,
+            "retries": retries,
+            "headers": dry_run_headers,
             "note": "headers not printed (to avoid leaking x-devtools-key)",
         })
         return HttpResult(status=0, headers={}, body_text="", json=None)
@@ -177,7 +216,7 @@ def _auto_connection(env: BdcEnv, *, timeout_seconds: int) -> Iterator[str | Non
 
     res = _call("POST", _url(env, "/api/vibe/connect"), headers=_headers(env),
                 json_body=_connect_payload(),
-                timeout_seconds=timeout_seconds, retries=2)
+                timeout_seconds=timeout_seconds, retries=_write_retries())
     if res.status != 200:
         raise SystemExit(f"connect failed: HTTP {res.status} {res.body_text[:200]}")
     conn_id = str((res.json or {}).get("connectionId") or "").strip()
@@ -243,7 +282,7 @@ def cmd_channels_create(env: BdcEnv, timeout_seconds: int, name: str, icon: str,
         body["show_in_top_nav"] = show_in_top_nav
     with _auto_connection(env, timeout_seconds=timeout_seconds) as conn_id:
         res = _call("POST", _url(env, "/api/vibe/channels"), headers=_headers(env, connection_id=conn_id),
-                    json_body=body, timeout_seconds=timeout_seconds, retries=2)
+                    json_body=body, timeout_seconds=timeout_seconds, retries=_write_retries())
         _print_json(_result_payload(res))
         return 0 if (DRY_RUN or res.status == 201) else 1
 
@@ -255,7 +294,7 @@ def cmd_channels_update(env: BdcEnv, timeout_seconds: int, channel_id: str, **kw
     with _auto_connection(env, timeout_seconds=timeout_seconds) as conn_id:
         res = _call("PUT", _url(env, f"/api/vibe/channels/{channel_id}"),
                     headers=_headers(env, connection_id=conn_id),
-                    json_body=body, timeout_seconds=timeout_seconds, retries=2)
+                    json_body=body, timeout_seconds=timeout_seconds, retries=_write_retries())
         _print_json(_result_payload(res))
         return 0 if (DRY_RUN or res.status == 200) else 1
 
@@ -264,7 +303,7 @@ def cmd_channels_delete(env: BdcEnv, timeout_seconds: int, channel_id: str) -> i
     with _auto_connection(env, timeout_seconds=timeout_seconds) as conn_id:
         res = _call("DELETE", _url(env, f"/api/vibe/channels/{channel_id}"),
                     headers=_headers(env, connection_id=conn_id),
-                    timeout_seconds=timeout_seconds, retries=2)
+                    timeout_seconds=timeout_seconds, retries=_write_retries())
         _print_json(_result_payload(res))
         return 0 if (DRY_RUN or res.status == 200) else 1
 
@@ -306,7 +345,8 @@ def cmd_articles_show(env: BdcEnv, timeout_seconds: int, article_id: str) -> int
 def cmd_articles_create(env: BdcEnv, timeout_seconds: int, channel_id: str, title: str, body: str,
                         published: bool, excerpt: str | None, cover_gradient: str | None,
                         slug: str | None, published_at: str | None,
-                        is_pinned: bool, is_featured: bool, tag_ids: list[int] | None) -> int:
+                        is_pinned: bool, is_featured: bool, tag_ids: list[int] | None,
+                        idempotency_key: str | None = None) -> int:
     payload: dict[str, Any] = {
         "channel_id": int(channel_id),
         "title": title,
@@ -325,10 +365,21 @@ def cmd_articles_create(env: BdcEnv, timeout_seconds: int, channel_id: str, titl
         payload["published_at"] = published_at
     if tag_ids:
         payload["tag_ids"] = [int(tag_id) for tag_id in tag_ids]
+
+    cfg = _config()
+    resolved_idempotency_key = (idempotency_key or "").strip() or None
+    if resolved_idempotency_key is None and cfg["article_create_idempotency_enabled"]:
+        resolved_idempotency_key = _build_article_create_idempotency_key(env, payload)
+    write_retries = (
+        max(0, int(cfg["article_create_retry_with_idempotency"]))
+        if resolved_idempotency_key is not None
+        else _write_retries()
+    )
+
     with _auto_connection(env, timeout_seconds=timeout_seconds) as conn_id:
         res = _call("POST", _url(env, "/api/vibe/articles"),
-                    headers=_headers(env, connection_id=conn_id),
-                    json_body=payload, timeout_seconds=timeout_seconds, retries=2)
+                    headers=_headers(env, connection_id=conn_id, idempotency_key=resolved_idempotency_key),
+                    json_body=payload, timeout_seconds=timeout_seconds, retries=write_retries)
         _print_json(_result_payload(res))
         return 0 if (DRY_RUN or res.status == 201) else 1
 
@@ -344,7 +395,7 @@ def cmd_articles_update(env: BdcEnv, timeout_seconds: int, article_id: str, **kw
     with _auto_connection(env, timeout_seconds=timeout_seconds) as conn_id:
         res = _call("PUT", _url(env, f"/api/vibe/articles/{article_id}"),
                     headers=_headers(env, connection_id=conn_id),
-                    json_body=body, timeout_seconds=timeout_seconds, retries=2)
+                    json_body=body, timeout_seconds=timeout_seconds, retries=_write_retries())
         _print_json(_result_payload(res))
         return 0 if (DRY_RUN or res.status == 200) else 1
 
@@ -353,7 +404,7 @@ def cmd_articles_delete(env: BdcEnv, timeout_seconds: int, article_id: str) -> i
     with _auto_connection(env, timeout_seconds=timeout_seconds) as conn_id:
         res = _call("DELETE", _url(env, f"/api/vibe/articles/{article_id}"),
                     headers=_headers(env, connection_id=conn_id),
-                    timeout_seconds=timeout_seconds, retries=2)
+                    timeout_seconds=timeout_seconds, retries=_write_retries())
         _print_json(_result_payload(res))
         return 0 if (DRY_RUN or res.status == 200) else 1
 
@@ -380,7 +431,7 @@ def _create_tag_request(env: BdcEnv, timeout_seconds: int, body: dict[str, Any])
     with _auto_connection(env, timeout_seconds=timeout_seconds) as conn_id:
         return _call("POST", _url(env, "/api/vibe/tags"),
                      headers=_headers(env, connection_id=conn_id),
-                     json_body=body, timeout_seconds=timeout_seconds, retries=2)
+                     json_body=body, timeout_seconds=timeout_seconds, retries=_write_retries())
 
 
 def cmd_tags_create(
@@ -461,7 +512,7 @@ def cmd_tags_update(env: BdcEnv, timeout_seconds: int, tag_id: str, **kwargs: An
     with _auto_connection(env, timeout_seconds=timeout_seconds) as conn_id:
         res = _call("PUT", _url(env, f"/api/vibe/tags/{tag_id}"),
                     headers=_headers(env, connection_id=conn_id),
-                    json_body=body, timeout_seconds=timeout_seconds, retries=2)
+                    json_body=body, timeout_seconds=timeout_seconds, retries=_write_retries())
         _print_json(_result_payload(res))
         return 0 if (DRY_RUN or res.status == 200) else 1
 
@@ -470,7 +521,7 @@ def cmd_tags_delete(env: BdcEnv, timeout_seconds: int, tag_id: str) -> int:
     with _auto_connection(env, timeout_seconds=timeout_seconds) as conn_id:
         res = _call("DELETE", _url(env, f"/api/vibe/tags/{tag_id}"),
                     headers=_headers(env, connection_id=conn_id),
-                    timeout_seconds=timeout_seconds, retries=2)
+                    timeout_seconds=timeout_seconds, retries=_write_retries())
         _print_json(_result_payload(res))
         return 0 if (DRY_RUN or res.status == 200) else 1
 
@@ -491,7 +542,7 @@ def cmd_comments_update(env: BdcEnv, timeout_seconds: int, comment_id: str, visi
     with _auto_connection(env, timeout_seconds=timeout_seconds) as conn_id:
         res = _call("PATCH", _url(env, f"/api/vibe/comments/{comment_id}"),
                     headers=_headers(env, connection_id=conn_id),
-                    json_body={"is_visible": visible}, timeout_seconds=timeout_seconds, retries=2)
+                    json_body={"is_visible": visible}, timeout_seconds=timeout_seconds, retries=_write_retries())
         _print_json(_result_payload(res))
         return 0 if (DRY_RUN or res.status == 200) else 1
 
@@ -500,7 +551,7 @@ def cmd_comments_delete(env: BdcEnv, timeout_seconds: int, comment_id: str) -> i
     with _auto_connection(env, timeout_seconds=timeout_seconds) as conn_id:
         res = _call("DELETE", _url(env, f"/api/vibe/comments/{comment_id}"),
                     headers=_headers(env, connection_id=conn_id),
-                    timeout_seconds=timeout_seconds, retries=2)
+                    timeout_seconds=timeout_seconds, retries=_write_retries())
         _print_json(_result_payload(res))
         return 0 if (DRY_RUN or res.status == 200) else 1
 
@@ -524,7 +575,7 @@ def cmd_users_update(env: BdcEnv, timeout_seconds: int, user_id: str, **kwargs: 
     with _auto_connection(env, timeout_seconds=timeout_seconds) as conn_id:
         res = _call("PUT", _url(env, f"/api/vibe/users/{user_id}"),
                     headers=_headers(env, connection_id=conn_id),
-                    json_body=body, timeout_seconds=timeout_seconds, retries=2)
+                    json_body=body, timeout_seconds=timeout_seconds, retries=_write_retries())
         _print_json(_result_payload(res))
         return 0 if (DRY_RUN or res.status == 200) else 1
 
@@ -533,7 +584,7 @@ def cmd_users_delete(env: BdcEnv, timeout_seconds: int, user_id: str) -> int:
     with _auto_connection(env, timeout_seconds=timeout_seconds) as conn_id:
         res = _call("DELETE", _url(env, f"/api/vibe/users/{user_id}"),
                     headers=_headers(env, connection_id=conn_id),
-                    timeout_seconds=timeout_seconds, retries=2)
+                    timeout_seconds=timeout_seconds, retries=_write_retries())
         _print_json(_result_payload(res))
         return 0 if (DRY_RUN or res.status == 200) else 1
 
@@ -602,6 +653,7 @@ def main(argv: list[str]) -> int:
     ar_c.add_argument("--pinned", action="store_true", default=False, help="创建后设为置顶")
     ar_c.add_argument("--featured", action="store_true", default=False, help="创建后设为精华")
     ar_c.add_argument("--tag-id", action="append", type=int, default=None, help="关联标签数值 ID；可重复传入")
+    ar_c.add_argument("--idempotency-key", default=None, help="自定义幂等键；不传时会按 payload 自动生成确定性键")
     ar_u = ar_sub.add_parser("update", help="更新文章")
     ar_u.add_argument("--id", required=True, help="文章标识（数值 ID / public_id / slug）")
     ar_u.add_argument("--channel-id", default=None)
@@ -710,7 +762,7 @@ def main(argv: list[str]) -> int:
             return cmd_articles_create(env, timeout_seconds, args.channel_id, args.title, args.body,
                                        args.published, args.excerpt, args.cover_gradient,
                                        args.slug, args.published_at, args.pinned, args.featured,
-                                       args.tag_id)
+                                       args.tag_id, args.idempotency_key)
         if args.ar_cmd == "update":
             if args.clear_tags and args.tag_id:
                 raise SystemExit("--clear-tags cannot be combined with --tag-id.")
