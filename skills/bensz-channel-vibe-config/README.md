@@ -133,6 +133,21 @@ python3 scripts/client.py users delete --id 5
 python3 scripts/client.py --env /path/to/.env channels list
 ```
 
+## 发布安全红线
+
+- `articles create`、`articles update --published true`、`articles delete` 会影响真实内容流，可能触发 RSS、邮件订阅或外部收录。
+- 因此，**不要**为了测试链路或确认接口状态去多发一篇“占位文章”“测试文章”或“同文不同 slug 的重复文章”。
+- 如果一次发布后终端输出不完整、执行会话卡住、网络看起来不稳定，默认把它当成“服务端可能已经成功接收”的情况处理。
+- 这时只做两件事：
+  1. 暂停等待一会，不做新的写操作
+  2. 用只读命令回查：
+     ```bash
+     python3 scripts/client.py articles list --channel-id 7 --published true
+     python3 scripts/client.py articles show --id <slug-or-public-id>
+     ```
+- **禁止**通过再次 `articles create`、改 `slug` 重发、轻微改标题重发等方式测试是否成功；这会制造重复内容，并且订阅推送通常无法撤回。
+- 如果请求看起来没跑通，优先判断为网络或终端侧暂时不稳定；多数情况下，等待后再回查比重试更安全。
+
 ## 服务端约束
 
 - 只允许调用 `/api/vibe/*` 端点

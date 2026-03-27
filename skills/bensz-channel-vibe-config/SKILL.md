@@ -42,8 +42,20 @@ metadata:
 - 不修改软件源代码，只操作数据（数据库层面）
 - 不输出完整 Key；日志中必须脱敏（仅显示前缀）
 - 所有变更类请求（POST / PUT / PATCH / DELETE）默认使用 `connect → 执行 → disconnect` 闭环
+- 所有变更类请求一旦发出，**禁止**把“再次执行一次”当作测试或确认手段；结果不确定时只能暂停等待，然后用只读命令回查
 - 若服务端 heartbeat 返回 `terminate: true`：立刻停止操作并 disconnect
 - `ping` 可无 KEY 执行；`doctor` 和所有鉴权接口必须带 KEY
+
+## 高风险发布规则（强制）
+
+- `articles create`、`articles update --published true`、`articles delete` 属于**高风险不可逆操作**：可能触发 RSS、邮件订阅、Webhook 或外部索引收录。
+- 对这些操作，**任何时间都不允许为了测试链路而额外发布/删除/重发文章**。
+- 若终端输出延迟、会话返回不稳定、网络疑似抖动，默认视为“请求可能已被服务端接受”，**不要重试**。
+- 正确做法只有两步：
+  1. 暂停等待上传结束或等待网络恢复
+  2. 使用只读命令回查，例如 `articles list` / `articles show`
+- **禁止**通过更换 `slug`、微调标题、复制正文再发一篇等方式“确认是否成功”；这会制造重复内容并污染订阅流。
+- 如果用户明确要发正式文章，AI 必须把“避免重复推送”放在首位，宁可多等一会，也不能多发一次。
 
 ## 环境变量
 
@@ -98,6 +110,17 @@ metadata:
    - AI 为文章生成标签时，**必须先检查已有标签**，优先沿用语义一致的既有标签。
    - 只有在现有标签里找不到合适项时，才允许新建标签。
    - `tags ensure` 会先读取现有标签；若 `name`、`slug` 或 `public_id` 精确命中，则直接复用，否则再创建。
+
+5. **发布结果不确定时的强制准则**
+   ```bash
+   python3 scripts/client.py articles list --channel-id 7 --published true
+   python3 scripts/client.py articles show --id <slug-or-public-id>
+   ```
+   规则：
+   - 对 `articles create/update/delete`，如果终端返回不稳定、输出缺失或疑似网络抖动，**不要再次执行写操作**。
+   - 默认假设“服务端可能已经成功处理”，先等待，再用 `list/show` 回查。
+   - 除非用户明确要求补救，并且已经确认前一次写操作未生效，否则不允许再次发文。
+   - 这一条优先级高于“想尽快验证是否成功”的本能；**避免重复推送**比“立刻看到成功输出”更重要。
 
 ## 标识规则
 
