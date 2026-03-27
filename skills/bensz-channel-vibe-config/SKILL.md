@@ -32,7 +32,7 @@ metadata:
 
 - 频道：列表 / 新增 / 修改 / 删除 / 顶栏显隐
 - 标签：列表 / 复用优先创建 / 新增 / 修改 / 删除
-- 文章：列表 / 查看 / 发布 / 修改 / 删除 / 发布状态 / 置顶 / 精华 / 标签关联
+- 文章：列表 / 查看 / 验证草稿 / 发布 / 修改 / 删除 / 发布状态 / 置顶 / 精华 / 标签关联
 - 评论：列表 / 修改可见性 / 删除
 - 用户：列表 / 修改资料和角色 / 删除普通用户
 
@@ -50,6 +50,8 @@ metadata:
 ## 高风险发布规则（强制）
 
 - `articles create`、`articles update --published true`、`articles delete` 属于**高风险不可逆操作**：可能触发 RSS、邮件订阅、Webhook 或外部索引收录。
+- 如果只是验证“创建文章 / 绑定标签 / 封面参数 / 幂等键”等链路是否可用，**只允许创建草稿，不允许直接发布**。
+- 验证链路时必须优先使用 `python3 scripts/client.py articles create-draft ...`；该命令会强制 `is_published=false`，避免误触发 RSS 和邮件推送。
 - `articles create` 默认自动附带确定性 `X-Idempotency-Key`（同 URL + 同 payload 生成同一个 key），用于降低网络抖动导致的重复发文风险。
 - 需要跨终端 / 跨会话对齐时，可显式传入 `--idempotency-key <key>` 覆盖自动 key。
 - 对这些操作，**任何时间都不允许为了测试链路而额外发布/删除/重发文章**。
@@ -107,12 +109,13 @@ metadata:
    ```bash
    python3 scripts/client.py tags list
    python3 scripts/client.py tags ensure --name Laravel --description 'Laravel 相关文章'
-   python3 scripts/client.py articles create --channel-id 1 --title 标题 --body 正文 --published --tag-id 2
+   python3 scripts/client.py articles create-draft --channel-id 1 --title 标题 --body 正文 --tag-id 2
    ```
    规则：
    - AI 为文章生成标签时，**必须先检查已有标签**，优先沿用语义一致的既有标签。
    - 只有在现有标签里找不到合适项时，才允许新建标签。
    - `tags ensure` 会先读取现有标签；若 `name`、`slug` 或 `public_id` 精确命中，则直接复用，否则再创建。
+   - 如果此时只是验证“文章创建 + 标签关联”链路，必须停留在草稿状态；确认正式发布前，不要补 `--published`。
 
 5. **发布结果不确定时的强制准则**
    ```bash
@@ -147,6 +150,7 @@ metadata:
 | 新增标签 | `tags create --name Laravel --slug laravel --description 'Laravel 相关文章'` |
 | 查看文章列表 | `articles list --published true --featured true` |
 | 按标签筛选文章 | `articles list --tag-id 2 --published true` |
+| 创建验证草稿并绑定标签 | `articles create-draft --channel-id 1 --title 标题 --body 正文 --tag-id 2 --tag-id 5` |
 | 发布文章并绑定标签 | `articles create --channel-id 1 --title 标题 --body 正文 --published --tag-id 2 --tag-id 5` |
 | 发布文章并手动指定幂等键 | `articles create --channel-id 1 --title 标题 --body 正文 --published --idempotency-key release-20260327-a1` |
 | 发布文章并置顶 | `articles create --channel-id 1 --title 标题 --body 正文 --published --pinned` |

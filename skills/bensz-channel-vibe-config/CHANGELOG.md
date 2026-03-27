@@ -9,15 +9,19 @@ The format is based on Keep a Changelog.
 ### Changed（变更）
 - 将 skill 名称从 `bensz-channel-devtools` 调整为 `bensz-channel-vibe-config`。
 - 同步更新目录名、文档标题、配置元数据、CLI 默认标识与命令示例。
+- 新增 `articles create-draft` 安全命令：用于验证文章创建、标签关联、封面参数或幂等键链路时，强制创建草稿，避免误触发 RSS 与邮件推送。
+- 更新 `scripts/client.py` 的文章创建帮助文案，明确 `articles create` 默认创建草稿，只有显式传入 `--published` 才会正式发布。
+- 更新 `SKILL.md` 与 `README.md`：把“验证链路必须使用草稿”写成硬规则，并提供 `articles create-draft` 的推荐命令路径。
 - 在 `SKILL.md` 与 `README.md` 中新增“发布安全红线 / 高风险发布规则”：
   对 `articles create/update/delete` 等可能触发 RSS、邮件订阅的真实内容操作，结果不确定时禁止重试、禁止额外测试、禁止通过更换 `slug` 或轻微改标题重复发文，只允许暂停等待并使用只读命令回查。
 - 客户端新增“保守重试”默认策略：非幂等写操作（POST/PUT/PATCH/DELETE）默认不自动重试；仅 `articles create` 在携带幂等键时允许自动重试。
 - `articles create` 现默认自动附带确定性 `X-Idempotency-Key`，并支持 `--idempotency-key` 手动覆盖，用于降低网络抖动或重复执行命令导致的重复发文风险。
-- `config.yaml` 新增 `write_retry_count`、`article_create_idempotency_enabled`、`article_create_retry_with_idempotency` 与 `article_create_idempotency_prefix` 配置项，并将版本提升到 `1.4.0`。
+- `config.yaml` 新增 `write_retry_count`、`article_create_idempotency_enabled`、`article_create_retry_with_idempotency` 与 `article_create_idempotency_prefix` 配置项，并将版本提升到 `1.5.0`。
 
 ### Fixed（修复）
 - 修复 skill 工作流设计缺陷：此前未把“发布类操作不可用来测试链路，终端返回不稳定时应等待并回查”写成硬规则，可能导致重复文章被推送到订阅流。
 - 修复 CLI 行为与安全规则不一致问题：此前代码层面对写操作仍存在自动重试，和“发布结果不确定时不要重试”的策略冲突。
+- 修复“为了验证可用性而临时创建文章”缺少安全入口的问题；现在可显式走草稿验证路径，不必冒险使用正式发布做联调。
 
 ## [1.3.0] - 2026-03-24
 
@@ -35,7 +39,7 @@ The format is based on Keep a Changelog.
 - 新增 `tags list/create/update/delete` CLI，完整对齐上游 `GET/POST/PUT/DELETE /api/vibe/tags`。
 - 新增文章标签能力：`articles list` 支持 `--tag-id` 过滤，`articles create/update` 支持重复传入 `--tag-id` 写入 `tag_ids`。
 - 新增文章标签清空能力：`articles update --clear-tags` 可显式发送空数组，移除已有标签关联。
-- 新增自动化 CLI 回归测试 `tests/test_client_cli.py`，覆盖 tags 子命令、文章标签过滤/关联/清空以及既有关键能力。
+- 新增自动化 CLI 回归测试 `scripts/test_client_cli.py`，覆盖 tags 子命令、文章标签过滤/关联/清空以及既有关键能力。
 
 ### Changed（变更）
 - 更新 `SKILL.md` 与 `README.md`，补齐标签管理、文章标签关联、标签筛选和标识规则说明。

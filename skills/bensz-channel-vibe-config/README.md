@@ -92,6 +92,12 @@ python3 scripts/client.py articles list
 python3 scripts/client.py articles list --channel-id 1 --published true --featured true
 python3 scripts/client.py articles list --tag-id 2 --published true
 python3 scripts/client.py articles show --id 42
+python3 scripts/client.py articles create-draft \
+  --channel-id 1 \
+  --title "验证草稿" \
+  --body "这是用于联调的草稿正文" \
+  --tag-id 2 \
+  --tag-id 7
 python3 scripts/client.py articles create \
   --channel-id 1 \
   --title "Hello World" \
@@ -134,9 +140,15 @@ python3 scripts/client.py users delete --id 5
 python3 scripts/client.py --env /path/to/.env channels list
 ```
 
+补充说明：
+
+- `articles create` 默认创建草稿，只有显式加上 `--published` 才会正式发布。
+- 如果只是为了验证文章创建、标签关联、幂等键或封面参数是否可用，优先使用 `articles create-draft`，不要把验证文章发成公开内容。
+
 ## 发布安全红线
 
 - `articles create`、`articles update --published true`、`articles delete` 会影响真实内容流，可能触发 RSS、邮件订阅或外部收录。
+- 如果必须先创建一篇文章来验证发布链路或写接口是否可用，**这篇文章必须保持草稿状态**；请使用 `python3 scripts/client.py articles create-draft ...`。
 - 因此，**不要**为了测试链路或确认接口状态去多发一篇“占位文章”“测试文章”或“同文不同 slug 的重复文章”。
 - 客户端已启用“写操作保守策略”：除 `articles create` 外，`POST/PUT/PATCH/DELETE` 默认不自动重试。
 - `articles create` 会自动附带确定性 `X-Idempotency-Key`（同 URL + 同 payload 会得到同一个键），仅在该幂等键存在时才允许自动重试。

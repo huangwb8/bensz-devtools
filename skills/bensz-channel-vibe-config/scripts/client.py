@@ -384,6 +384,27 @@ def cmd_articles_create(env: BdcEnv, timeout_seconds: int, channel_id: str, titl
         return 0 if (DRY_RUN or res.status == 201) else 1
 
 
+def cmd_articles_create_draft(env: BdcEnv, timeout_seconds: int, channel_id: str, title: str, body: str,
+                              excerpt: str | None, cover_gradient: str | None, slug: str | None,
+                              tag_ids: list[int] | None, idempotency_key: str | None = None) -> int:
+    return cmd_articles_create(
+        env,
+        timeout_seconds,
+        channel_id,
+        title,
+        body,
+        False,
+        excerpt,
+        cover_gradient,
+        slug,
+        None,
+        False,
+        False,
+        tag_ids,
+        idempotency_key,
+    )
+
+
 def cmd_articles_update(env: BdcEnv, timeout_seconds: int, article_id: str, **kwargs: Any) -> int:
     body = {k: v for k, v in kwargs.items() if v is not None}
     if "channel_id" in body:
@@ -641,11 +662,11 @@ def main(argv: list[str]) -> int:
     ar_l.add_argument("--tag-id", type=int, default=None, help="按标签数值 ID 过滤")
     ar_s = ar_sub.add_parser("show", help="查看单篇文章")
     ar_s.add_argument("--id", required=True, help="文章标识（数值 ID / public_id / slug）")
-    ar_c = ar_sub.add_parser("create", help="发布文章")
+    ar_c = ar_sub.add_parser("create", help="创建文章（默认草稿；加 --published 才正式发布）")
     ar_c.add_argument("--channel-id", required=True)
     ar_c.add_argument("--title", required=True)
     ar_c.add_argument("--body", required=True, help="Markdown 正文")
-    ar_c.add_argument("--published", action="store_true", default=False, help="立即发布")
+    ar_c.add_argument("--published", action="store_true", default=False, help="正式发布；验证链路请改用 create-draft")
     ar_c.add_argument("--slug", default=None)
     ar_c.add_argument("--excerpt", default=None)
     ar_c.add_argument("--cover-gradient", default=None)
@@ -654,6 +675,15 @@ def main(argv: list[str]) -> int:
     ar_c.add_argument("--featured", action="store_true", default=False, help="创建后设为精华")
     ar_c.add_argument("--tag-id", action="append", type=int, default=None, help="关联标签数值 ID；可重复传入")
     ar_c.add_argument("--idempotency-key", default=None, help="自定义幂等键；不传时会按 payload 自动生成确定性键")
+    ar_cd = ar_sub.add_parser("create-draft", help="创建验证草稿（强制草稿，不会触发正式发布）")
+    ar_cd.add_argument("--channel-id", required=True)
+    ar_cd.add_argument("--title", required=True)
+    ar_cd.add_argument("--body", required=True, help="Markdown 正文")
+    ar_cd.add_argument("--slug", default=None)
+    ar_cd.add_argument("--excerpt", default=None)
+    ar_cd.add_argument("--cover-gradient", default=None)
+    ar_cd.add_argument("--tag-id", action="append", type=int, default=None, help="关联标签数值 ID；可重复传入")
+    ar_cd.add_argument("--idempotency-key", default=None, help="自定义幂等键；不传时会按 payload 自动生成确定性键")
     ar_u = ar_sub.add_parser("update", help="更新文章")
     ar_u.add_argument("--id", required=True, help="文章标识（数值 ID / public_id / slug）")
     ar_u.add_argument("--channel-id", default=None)
@@ -763,6 +793,10 @@ def main(argv: list[str]) -> int:
                                        args.published, args.excerpt, args.cover_gradient,
                                        args.slug, args.published_at, args.pinned, args.featured,
                                        args.tag_id, args.idempotency_key)
+        if args.ar_cmd == "create-draft":
+            return cmd_articles_create_draft(env, timeout_seconds, args.channel_id, args.title, args.body,
+                                             args.excerpt, args.cover_gradient, args.slug,
+                                             args.tag_id, args.idempotency_key)
         if args.ar_cmd == "update":
             if args.clear_tags and args.tag_id:
                 raise SystemExit("--clear-tags cannot be combined with --tag-id.")
