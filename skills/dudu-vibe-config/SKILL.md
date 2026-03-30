@@ -5,6 +5,7 @@ metadata:
   author: Bensz Conan
   short-description: dudu 氛围配置远程桥梁（Vibe Agent API）
   keywords:
+    - dudu-vibe-config
     - dudu
     - vibe
     - 氛围配置
@@ -21,33 +22,28 @@ metadata:
 
 ## 与 bensz-collect-bugs 的协作约定
 
-- 当用户环境中出现因本 skill 设计缺陷导致的 bug 时，优先使用 `bensz-collect-bugs` 按规范记录到 `~/.bensz-skills/bugs/`，严禁直接修改用户本地 Claude Code / Codex 中已安装的 skill 源码。
-- 若 AI 仍可通过 workaround 继续完成用户任务，应先记录 bug，再继续完成当前任务。
-- 当用户明确要求“report bensz skills bugs”等公开上报动作时，调用本地 `gh` 与 `bensz-collect-bugs`，仅上传新增 bug 到 `huangwb8/bensz-bugs`；不要 pull / clone 整个 bug 仓库。
-
+- 设计缺陷先用 `bensz-collect-bugs` 记录到 `~/.bensz-skills/bugs/`，不要直接改用户本地已安装的 skill。
+- 若存在 workaround：先记 bug，再继续完成任务。
+- 只有用户明确要求公开上报时，才用 `gh` 上传新增 bug；不要 pull / clone 整个 bug 仓库。
 
 ## 目标
 
-把“人类的配置意图”稳定地翻译成对 `dudu` **Vibe Agent API** 的一组受限操作（仅 `/vibe/agent/*`），以支持远程优化：
-
-- 模板：创建/删除
-- 订阅：创建/更新检索计划/主动刷新检索式/退订
-- 报道：触发生成/删除（支持生成时临时覆盖 AI 配置）
-- 域名规则：读取/更新（allowlist/blocklist/keywords）
+把“人类的配置意图”翻译成对 `dudu` `Vibe Agent API` 的受限操作，仅覆盖：
+- 模板：创建 / 删除
+- 订阅：创建 / 更新 / 解析 prompt / 删除
+- 报道：生成 / 删除
+- 域名规则：读取 / 更新
 
 ## 当前对齐状态（2026-03-26 审计）
 
-- 当前 `dudu` 最新 `/vibe/agent/*` 已开放：模板 `add/delete`、订阅 `create/update/parse-prompt/delete`、报道 `generate/delete`、域名规则 `get/set`。
-- 模板创建请求已对齐 `sourceType=search|rss_opml` 与可选 `opml`。
-- 当前 skill 的**默认 derived 策略**已切到“AI 宿主型本地生成”：当用户通过 Codex/Claude 等宿主直接使用本 skill 调整订阅 prompt / derived_* 时，应优先在当前本地对话里生成 `derivedQuery / derivedPlan`，再显式写回 dudu。
-- 当前 skill 也提供**脚本自驱型本地生成**：可通过 `python3 scripts/local_derive.py ...` 单独预览，或在 `subscriptions create/update` 中显式传入 `--local-derived-script`，让脚本先调用本地 `codex` / `claude` CLI 生成 derived，再自动写回 dudu。
-- `subscriptions create/update` 已支持显式写入 `derivedQuery` / `derivedPlan`；若未显式提供，服务端会尝试刷新，并返回 `derivedRefreshStatus` / `derivedQuery` / `derivedAt`。
-- `subscriptions update` 当前只接受 `name/prompt/frequency/ai/derivedQuery/derivedPlan/refreshDerived` 这一组 **Vibe 专用字段**。
-- `groupId`、`generationAi`、`tier`、`style` 属于主站 `/topics` / `/topics/:id/subscribe` 语义，不是当前 Vibe PATCH 契约；当前 skill 会在本地显式拒绝这些旧参数，避免继续发出无效请求。
-- 所有写请求默认不自动重试，避免在超时或瞬时 5xx 后重复创建连接、模板、订阅等资源。
-- 新增订阅时，若用户未指定 AI 配置，当前 skill 默认按 `codex_cli + CLI/provider 默认模型 + medium` 创建；也就是 `sdk=codex_cli`、`model=""`、`reasoningEffort=medium`。若用户显式指定 `sdk/model/reasoning-effort`，则以用户参数为准。
-- 新增模板接口当前**不保存 AI 配置**；因此“新模板默认 SDK”只体现在后续基于该模板创建订阅/生成报道时的默认行为，不会伪造一个服务端并不存在的模板字段。
-- 当前 `/vibe/agent/templates` 仍**不支持显式写入模板级 derived_* 字段**；因此模板场景下的“本地生成”主要用于先本地优化 query/prompt，本 skill 无法绕过服务端契约直接持久化模板 derived 数据。
+- 当前 `/vibe/agent/*` 已覆盖模板 `add/delete`、订阅 `create/update/parse-prompt/delete`、报道 `generate/delete`、域名规则 `get/set`。
+- `templates add` 已对齐 `sourceType=search|rss_opml` 与可选 `opml`。
+- 默认 derived 路径是“AI 宿主型本地生成”：先在当前对话里生成 `derivedQuery / derivedPlan`，再显式写回 dudu。
+- 可选“脚本自驱型本地生成”：用 `python3 scripts/local_derive.py ...` 预览，或在 `subscriptions create/update` 里加 `--local-derived-script`，先调用本地 `codex` / `claude` CLI 生成，再写回 dudu。
+- `subscriptions create/update` 支持 `derivedQuery` / `derivedPlan`；需要服务端重算时，用 `subscriptions parse-prompt` 或更新时的 `--refresh-derived/--no-refresh-derived`。
+- `subscriptions update` 只接受 `name/prompt/frequency/ai/derivedQuery/derivedPlan/refreshDerived`；旧字段 `groupId`、`generationAi`、`tier`、`style` 会在本地直接拒绝。
+- 所有写请求默认不自动重试；新增订阅默认 AI 为 `sdk=codex_cli`、`model=""`、`reasoningEffort=medium`，显式参数优先。
+- 模板接口不保存 AI 配置，也不支持模板级 `derived_*`；模板场景最多只能先本地优化 query/prompt，再调用服务端创建。
 
 ## 安全边界（强制）
 
@@ -60,41 +56,33 @@ metadata:
 
 ## 环境变量
 
-优先从环境变量读取：
-
 - `DUDU_VIBE_URL`：默认 `http://localhost:3001`
 - `DUDU_VIBE_KEY`：长度需 ≥ 16
-
-兼容别名：
-
-- URL：`dudu_vibe_url`、`dudu_base_url`
-- KEY：`dudu_vibe_key`、`dudu_vibe_api`
+- URL 兼容别名：`dudu_vibe_url`、`dudu_base_url`
+- KEY 兼容别名：`dudu_vibe_key`、`dudu_vibe_api`
 
 ## 标准工作流（推荐）
 
-1) 环境检查（不泄露 Key）
+1. 环境检查
 
 ```bash
 python3 scripts/env_check.py
 ```
 
-2) 连接健康检查（最小闭环）
+2. 连通性闭环
 
 ```bash
 python3 scripts/client.py ping
 python3 scripts/client.py doctor
 ```
 
-3) 先决定 derived 生成方式，再执行配置变更
+3. 先决定 derived 路径，再做变更
+- 域名规则：先 `domains get`，再 `domains set`；默认安全合并，只有“完全替换”才用 `--reset`
+- 订阅 prompt / `derived_*`：默认先本地产生 `derivedQuery / derivedPlan` 再显式写回；只有用户明确要求服务端重算，或本地生成不可用时，才用 `subscriptions parse-prompt`
+- 宿主 AI 想把本地生成下沉到脚本时，用 `python3 scripts/local_derive.py ...` 或 `subscriptions create/update --local-derived-script`
+- 模板 / 报道按需执行；所有写操作默认自动 `connect → disconnect`
 
-- 域名规则：先 `domains get`，再决定是否 `domains set`（默认安全合并；需要“完全替换”时才用 `--reset`）
-- 订阅 prompt / derived_*：
-  - 默认用**AI 宿主型本地生成**：先在当前对话里本地产出 `derivedQuery / derivedPlan`，再通过 `subscriptions create/update --derived-query --derived-plan-*` 显式写回
-  - 若用户明确要求走命令行本地生成，或宿主 AI 需要把这一步下沉到脚本：使用 `python3 scripts/local_derive.py ...` 或 `subscriptions create/update --local-derived-script`
-  - 只有在用户明确要求“让 dudu 自己重算”，或本地生成不可用时，才用 `subscriptions parse-prompt`
-- 模板/报道：按需创建/删除；所有变更类操作默认自动 connect/disconnect
-
-4) 不确定时先 dry-run（推荐；纯本地预览不要求先配置 key）
+4. 不确定时先 `--dry-run`；纯本地预览不要求预先配置 key
 
 ```bash
 python3 scripts/client.py --dry-run domains set --reset --allowlist example.com
@@ -102,20 +90,15 @@ python3 scripts/client.py --dry-run domains set --reset --allowlist example.com
 
 ## 常见任务映射（意图 → 命令）
 
-- “把 example.com 加入白名单”：`domains set --allowlist example.com`
-- “屏蔽 bad.com”：`domains set --blocklist bad.com`
-- “添加关键词过滤 X”：`domains set --keywords X`
-- “新增一个每日订阅（未指定 AI 时默认 Codex CLI + CLI/provider 默认模型 + medium）”：`subscriptions create --frequency daily`
-- “把 prompt 改掉，并优先用本地 AI 生成稳定 derived_*”：先在宿主 AI 本地生成 `derivedQuery / derivedPlan`，再调用 `subscriptions update --topic-id ... --prompt ... --derived-query ... --derived-plan-file ...`
-- “把已有订阅切到 Codex CLI + 更高推理强度”：`subscriptions update --topic-id ... --sdk codex_cli --reasoning-effort high --local-derived-script`
-- “手工指定一份更稳定的检索计划”：`subscriptions update --topic-id ... --derived-query '...' --derived-plan-file /path/to/derived-plan.json`
-- “用命令行本地生成 derived_* 再直接写回”：`subscriptions update --topic-id ... --prompt ... --local-derived-script`
-- “立刻让 dudu 服务端重新解析这个订阅的 prompt”：`subscriptions parse-prompt --topic-id ...`
-- “用 Claude Code 建一个开发工具类订阅”：`subscriptions create --frequency daily --sdk claude_code --thinking-mode thinking`
-- “新增一个 RSS 模板”：`templates add --source-type rss_opml --opml '<opml ...>' ...`
-- “新增一个模板”：`templates add ...`（模板本身不持久化 AI 配置，也不支持显式写模板级 derived_*；如需更稳定，应先在本地把 query/prompt 打磨好）
-- “触发某个订阅生成新报道”：`reports generate --topic-id ...`
-- “这次生成临时改用 Codex CLI 高推理”：`reports generate --topic-id ... --sdk codex_cli --reasoning-effort high`
+- 白名单 / 黑名单 / 关键词：`domains set --allowlist ...`、`--blocklist ...`、`--keywords ...`
+- 新增订阅：`subscriptions create --frequency daily`
+- 本地生成后写回：`subscriptions update --topic-id ... --prompt ... --derived-query ... --derived-plan-file ...`
+- 命令行本地生成并写回：`subscriptions update --topic-id ... --prompt ... --local-derived-script`
+- 让服务端重算 derived：`subscriptions parse-prompt --topic-id ...`
+- 切到 `codex_cli` 高推理：`subscriptions update --topic-id ... --sdk codex_cli --reasoning-effort high --local-derived-script`
+- 创建 RSS 模板：`templates add --source-type rss_opml --opml '<opml ...>' ...`
+- 触发报道生成：`reports generate --topic-id ...`
+- 临时覆盖本次生成 AI：`reports generate --topic-id ... --sdk codex_cli --reasoning-effort high`
 
 ## 订阅更新兼容策略
 
@@ -125,67 +108,16 @@ python3 scripts/client.py --dry-run domains set --reset --allowlist example.com
 - 若用户传入当前 Vibe 契约不支持的旧字段（`groupId` / `generationAi` / `tier` / `style`），客户端会在本地直接给出结构化拒绝
 - **不会** 自动走“删除旧订阅 + 新建订阅”的危险兜底，因为那会改变 topic id，并可能丢失历史报道/进度/引用关系
 
-## 检索式构建控制
-
-- `subscriptions create/update` 支持 `--derived-query`
-- `subscriptions create/update` 支持 `--derived-plan-json` / `--derived-plan-file`
-- `subscriptions create/update` 支持 `--local-derived-script`
-- `scripts/local_derive.py` 可直接调用本地 `codex` / `claude` CLI 生成 `derivedQuery / derivedPlan`
-- `subscriptions update` 支持 `--refresh-derived` / `--no-refresh-derived`
-- `subscriptions parse-prompt` 用于“按当前或临时 AI 设置，立即重建 derived_*”
-
-建议：
-
-- 默认优先使用**AI 宿主型本地生成**，把 `derivedQuery / derivedPlan` 显式写回 dudu
-- 若需要纯命令行闭环，优先使用 `--local-derived-script`
-- 需要稳定复现多后端检索行为时，优先通过 `--derived-plan-file` 传入完整 JSON
-- 只有在用户明确要求服务端重算，或本地生成不可用时，才用 `subscriptions parse-prompt`
-
 ## 订阅提示词策略
 
-`--prompt` 字段不必使用自然语言。**专业检索式语法**信噪比更高，且对 AI 和搜索引擎后端同样有效。
-
-dudu 默认搜索引擎为 **SearXNG**。SearXNG 本身不解析布尔运算符，而是将查询字符串**原样透传**给后端引擎（如 Google、Bing、Brave 等）。因此：
-
-- `"phrase"`、`-term`、`OR`、`(group)` 等语法的实际效果取决于后端引擎是否支持
-- SearXNG 自身只处理 `!engine`（指定引擎）和 `:lang`（指定语言）两类前缀
-
-### 核心原则
-
-- 用关键词组合替代描述性句子，优先领域术语
-- 用引号锁定精确短语，用 `-` 排除噪音（主流后端均支持）
-- 避免依赖复杂嵌套布尔表达式（后端支持程度不一）
-
-### 算子速查
-
-| 算子 | 支持范围 | 示例 |
-|------|---------|------|
-| `"phrase"` | 主流后端均支持 | `"interest rate decision"` |
-| `-term` | 主流后端均支持 | `crypto -scam -pump` |
-| `OR` | 多数后端支持 | `LLM OR "large language model"` |
-| `(group)` | 部分后端支持 | `(iPhone OR iPad) release` |
-| `!engine` | SearXNG 原生 | `!news AI regulation` |
-| `:lang` | SearXNG 原生 | `:zh AI 监管` |
-
-### 示例对比
-
-| 场景 | ❌ 自然语言 | ✅ 检索式 |
-|------|------------|----------|
-| AI 研究动态 | 关注人工智能领域最新进展 | `"large language model" OR LLM OR "foundation model" paper OR benchmark -hype` |
-| 苹果产品新闻 | 苹果公司的新产品和发布会 | `Apple iPhone OR Mac OR "Vision Pro" OR WWDC -rumor -leak` |
-| 宏观经济 | 关注美联储和全球经济形势 | `Fed OR "Federal Reserve" OR ECB "interest rate" OR inflation OR "rate cut"` |
-| 开源项目 | 关注 GitHub 上的热门开源项目 | `GitHub OR "open source" release OR "breaking change" -tutorial -beginner` |
-| 安全漏洞 | 关注网络安全漏洞和补丁 | `CVE OR vulnerability OR "zero-day" critical OR high -FUD` |
-
-> 注：示例中刻意减少嵌套括号，以提升跨后端兼容性。
-
-### 构造模板
-
-```
-[核心主题词] [子类型1] OR [子类型2] -[噪音词1] -[噪音词2]
-```
+`--prompt` 不必写成自然语言。默认搜索后端是 `SearXNG`，它会把查询串原样透传给后端引擎；自身只原生处理 `!engine` 和 `:lang`。建议：
+- 优先写关键词组合而不是描述性句子
+- 用 `"phrase"` 锁定短语，用 `-term` 排除噪音
+- `OR` 和简单括号可用，但避免复杂嵌套，减少后端差异
+- 需要稳定复现时，优先把结果沉淀到 `--derived-query` / `--derived-plan-file`
 
 例：
+
 ```bash
 python3 scripts/client.py subscriptions create \
   --name "AI 安全周报" \

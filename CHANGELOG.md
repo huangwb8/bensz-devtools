@@ -6,6 +6,7 @@
 
 ### Changed
 
+- 使用 `compact-bensz-skills` 收紧 `skills/dudu-vibe-config` 与 `skills/bensz-channel-vibe-config` 的工作型 Markdown，保留触发语义、关键命令、安全边界与默认路径，同时降低上下文体积
 - 将 `skills/bensz-channel-devtools` 重命名为 `skills/bensz-channel-vibe-config`
 - 同步更新仓库入口文档、skill 元数据、脚本中的默认 skill 名称与命令示例
 - 将 `bensz-channel-vibe-config` 的能力说明更新为“频道、标签、文章、评论、用户”，并同步来源仓库路径到 `/Volumes/2T01/winE/Starup/bensz-channel`
@@ -14,6 +15,7 @@
 - 调整 `.gitignore`：取消忽略整个 `skills/*/plans/` 与 `skills/*/tests/`，只保留缓存/临时产物忽略规则，确保每个 skill 的计划与测试沉淀都能被版本控制追踪
 - 为 `skills/dudu-vibe-config/tests/test_client_defaults.py` 增加 `.gitignore` 精确例外，确保本次新增回归测试可被版本控制追踪，同时不放出其他历史批次产物
 - 保持 `skills/*/tests/` 持续走 Git 忽略；`bensz-channel-vibe-config` 的核心 CLI 回归脚本改放到 `skills/bensz-channel-vibe-config/scripts/test_client_cli.py`
+- 调整 `.gitignore`：新增 `skills/*/.compact-bensz-skills/`，隔离技能压缩产生的隐藏工作区与统计产物
 
 ### Added
 

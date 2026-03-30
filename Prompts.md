@@ -19,6 +19,10 @@
 
 ---
 
+/Volumes/2T01/winE/PythonCloud/Agents/pipelines/deep_research/reports/OpenAI-Anthropic-封号潮深度报告 里的文章写得不错。 可以发表bensz channel 的 vibe 频道。 
+
+---
+
 skills/bensz-channel-vibe-config 优化：
 
 - 发布文章的时候，如果必须要创建文章来测试是否可用，文章必须是草稿状态而不是publish状态，以免有触发无意义的RSS推送和邮件推送。
