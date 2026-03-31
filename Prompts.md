@@ -111,9 +111,8 @@ https://channel.hwb0307.com/channels/716f55930b26ce88/articles/e175fb843cd0ce88 
 
 介绍 https://github.com/huangwb8/ChineseResearchLaTeX 的最近几次commit/release的情况，写个文章介绍下。  发到 bensz channel 的 科研 频道上。 要求：
 
-- 请结合既往 bensz channel 上和 ChineseResearchLaTeX 有关的文章一起讨论，这样比较有连贯性
-- 重点突出
-- 较为详尽，让读者能切实地感受到项目的变化
+- 开头第1段，结合既往 bensz channel 上和 ChineseResearchLaTeX 有关的文章一起讨论，这样比较有连贯性
+- 第2段开始，介绍最近的新变化。要求重点突出、较为详尽，让读者能切实地感受到项目的变化
 - 文末要附带项目github地址
 
 ---
