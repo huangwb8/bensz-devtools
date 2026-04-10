@@ -10,7 +10,7 @@ default_vibe_url: "http://localhost:3001"
 request_timeout_seconds: 15
 heartbeat_interval_seconds: 30
 default_subscription_ai_sdk: "codex_cli"
-default_subscription_ai_model: ""
+default_subscription_ai_model: "gpt-5.4"
 default_subscription_ai_reasoning_effort: "medium"
 default_local_derived_mode: "host_ai"
 default_local_derived_runner: "auto"
