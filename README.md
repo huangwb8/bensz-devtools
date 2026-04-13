@@ -4,7 +4,7 @@
 
 当前仓库已经收录两个同类但面向不同产品的 skill：
 
-- `dudu-vibe-config`：通过 `dudu` 的 `/vibe/agent/*` 接口管理模板、订阅、报道和域名规则
+- `dudu-vibe-config`：通过 `dudu` 的 `/vibe/agent/*` 接口管理模板、报道风格、订阅、报道和域名规则
 - `bensz-channel-vibe-config`：通过 `bensz-channel` 的 `/api/vibe/*` 接口管理频道、标签、文章、评论和用户
 
 这类 skill 的共同点是：都通过受限 API 把“人类意图”翻译成远程配置或远程管理动作，不直接修改对应产品的软件源代码。
@@ -21,7 +21,7 @@
 
 - 上游业务仓库：`/Volumes/2T01/winE/Starup/dudu`
 - 目标系统：`dudu`
-- 能力范围：模板、订阅、报道、域名规则
+- 能力范围：模板、报道风格、订阅、报道、域名规则
 - 安全边界：仅访问 `/vibe/agent/*`
 
 ### `skills/bensz-channel-vibe-config`

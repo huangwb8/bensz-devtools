@@ -4,6 +4,24 @@
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-04-13
+
+### Added（新增）
+
+- 新增 `styles list/create/update/delete`：对齐 `dudu` 最新 `/vibe/agent/styles*` 报道风格管理能力
+- 新增 CLI 回归测试：覆盖 `styles` dry-run 与 `domains set` 安全合并逻辑
+
+### Changed（变更）
+
+- 基于 2026-04-13 对 `/Volumes/2T01/winE/Starup/dudu` 最新 `/vibe/agent/*` 源码审计，更新 skill 口径：模板创建时 `search` 模板会由服务端自动预生成并持久化模板级 `derivedQuery / derivedPlan`
+- `config.yaml` 升级到 `0.7.0`，把新增订阅默认 AI 模型恢复为 `model=""`，与 README、测试和“交由 CLI/provider 默认模型决策”的策略保持一致
+- 移除未实际生效的 `default_local_derived_mode` 配置项，避免误导维护者以为它是可切换的运行时开关
+- `README.md` 与 `SKILL.md` 同步更新为最新风格管理能力、模板 derived 行为和更通用的本地启动说明
+
+### Fixed（修复）
+
+- 修复 `config.yaml` 与 `tests/test_client_defaults.py` / README 长期不一致，导致默认订阅 AI 行为与文档偏离、测试回归失败的问题
+
 ## [0.6.0] - 2026-03-26
 
 ### Added（新增）

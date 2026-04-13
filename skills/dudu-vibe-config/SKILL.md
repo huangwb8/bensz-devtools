@@ -1,6 +1,6 @@
 ---
 name: dudu-vibe-config
-description: dudu 氛围配置“桥梁”Skill：通过 Vibe Agent API（/vibe/agent/*）在受限范围内管理模板/订阅/报道/域名规则，适用于 Claude Code/Codex 远程优化配置。
+description: dudu 氛围配置“桥梁”Skill：通过 Vibe Agent API（/vibe/agent/*）在受限范围内管理模板/报道风格/订阅/报道/域名规则，适用于 Claude Code/Codex 远程优化配置。
 metadata:
   author: Bensz Conan
   short-description: dudu 氛围配置远程桥梁（Vibe Agent API）
@@ -11,6 +11,7 @@ metadata:
     - 氛围配置
     - 远程配置
     - templates
+    - styles
     - subscriptions
     - domains
     - reports
@@ -30,20 +31,21 @@ metadata:
 
 把“人类的配置意图”翻译成对 `dudu` `Vibe Agent API` 的受限操作，仅覆盖：
 - 模板：创建 / 删除
+- 报道风格：列出 / 创建 / 更新 / 删除
 - 订阅：创建 / 更新 / 解析 prompt / 删除
 - 报道：生成 / 删除
 - 域名规则：读取 / 更新
 
-## 当前对齐状态（2026-03-26 审计）
+## 当前对齐状态（2026-04-13 审计）
 
-- 当前 `/vibe/agent/*` 已覆盖模板 `add/delete`、订阅 `create/update/parse-prompt/delete`、报道 `generate/delete`、域名规则 `get/set`。
-- `templates add` 已对齐 `sourceType=search|rss_opml` 与可选 `opml`。
+- 当前 `/vibe/agent/*` 已覆盖模板 `add/delete`、报道风格 `list/create/update/delete`、订阅 `create/update/parse-prompt/delete`、报道 `generate/delete`、域名规则 `get/set`。
+- `templates add` 已对齐 `sourceType=search|rss_opml` 与可选 `opml`；其中 `search` 模板会由服务端在创建时自动预生成并持久化模板级 `derivedQuery / derivedPlan`，当前 CLI 仍不支持手工传入模板级 `derived_*`。
 - 默认 derived 路径是“AI 宿主型本地生成”：先在当前对话里生成 `derivedQuery / derivedPlan`，再显式写回 dudu。
 - 可选“脚本自驱型本地生成”：用 `python3 scripts/local_derive.py ...` 预览，或在 `subscriptions create/update` 里加 `--local-derived-script`，先调用本地 `codex` / `claude` CLI 生成，再写回 dudu。
 - `subscriptions create/update` 支持 `derivedQuery` / `derivedPlan`；需要服务端重算时，用 `subscriptions parse-prompt` 或更新时的 `--refresh-derived/--no-refresh-derived`。
 - `subscriptions update` 只接受 `name/prompt/frequency/ai/derivedQuery/derivedPlan/refreshDerived`；旧字段 `groupId`、`generationAi`、`tier`、`style` 会在本地直接拒绝。
 - 所有写请求默认不自动重试；新增订阅默认 AI 为 `sdk=codex_cli`、`model=""`、`reasoningEffort=medium`，显式参数优先。
-- 模板接口不保存 AI 配置，也不支持模板级 `derived_*`；模板场景最多只能先本地优化 query/prompt，再调用服务端创建。
+- 模板接口仍不保存模板级 AI 配置；若需要影响模板预生成的 derived 结果，应先在本地优化 `query/prompt`，再调用服务端创建。
 
 ## 安全边界（强制）
 
@@ -77,6 +79,7 @@ python3 scripts/client.py doctor
 ```
 
 3. 先决定 derived 路径，再做变更
+- 报道风格：先 `styles list` 明确现有 `style id`，再按需 `styles create/update/delete`
 - 域名规则：先 `domains get`，再 `domains set`；默认安全合并，只有“完全替换”才用 `--reset`
 - 订阅 prompt / `derived_*`：默认先本地产生 `derivedQuery / derivedPlan` 再显式写回；只有用户明确要求服务端重算，或本地生成不可用时，才用 `subscriptions parse-prompt`
 - 宿主 AI 想把本地生成下沉到脚本时，用 `python3 scripts/local_derive.py ...` 或 `subscriptions create/update --local-derived-script`
@@ -91,12 +94,14 @@ python3 scripts/client.py --dry-run domains set --reset --allowlist example.com
 ## 常见任务映射（意图 → 命令）
 
 - 白名单 / 黑名单 / 关键词：`domains set --allowlist ...`、`--blocklist ...`、`--keywords ...`
+- 报道风格：`styles list`、`styles create --payload-file ...`、`styles update --id ... --payload-json ...`、`styles delete --id ...`
 - 新增订阅：`subscriptions create --frequency daily`
 - 本地生成后写回：`subscriptions update --topic-id ... --prompt ... --derived-query ... --derived-plan-file ...`
 - 命令行本地生成并写回：`subscriptions update --topic-id ... --prompt ... --local-derived-script`
 - 让服务端重算 derived：`subscriptions parse-prompt --topic-id ...`
 - 切到 `codex_cli` 高推理：`subscriptions update --topic-id ... --sdk codex_cli --reasoning-effort high --local-derived-script`
 - 创建 RSS 模板：`templates add --source-type rss_opml --opml '<opml ...>' ...`
+- 创建自定义风格：`styles create --payload-file ./style.json`
 - 触发报道生成：`reports generate --topic-id ...`
 - 临时覆盖本次生成 AI：`reports generate --topic-id ... --sdk codex_cli --reasoning-effort high`
 

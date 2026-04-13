@@ -56,7 +56,6 @@ def _config() -> dict[str, Any]:
         "default_subscription_ai_sdk": default_subscription_ai_sdk,
         "default_subscription_ai_model": default_subscription_ai_model,
         "default_subscription_ai_reasoning_effort": default_subscription_ai_reasoning_effort,
-        "default_local_derived_mode": str(cfg.scalars.get("default_local_derived_mode", "host_ai")).strip() or "host_ai",
         "default_local_derived_runner": str(cfg.scalars.get("default_local_derived_runner", "auto")).strip() or "auto",
         "local_derived_timeout_seconds": int(cfg.scalars.get("local_derived_timeout_seconds", "180")),
     }
@@ -336,6 +335,23 @@ def _load_json_input(*, inline_json: str | None, file_path: str | None, name: st
     return _parse_json_text(raw, name=name)
 
 
+def _load_required_json_object_input(
+    *,
+    inline_json: str | None,
+    file_path: str | None,
+    name: str,
+    allow_empty: bool,
+) -> dict[str, Any]:
+    payload = _load_json_input(inline_json=inline_json, file_path=file_path, name=name)
+    if payload is None:
+        raise SystemExit(f"Provide one of --{name}-json or --{name}-file.")
+    if not isinstance(payload, dict):
+        raise SystemExit(f"Invalid {name}: expected a JSON object.")
+    if not allow_empty and not payload:
+        raise SystemExit(f"Invalid {name}: empty JSON object is not allowed.")
+    return payload
+
+
 def _parse_frequency_arg(raw: str | None) -> Any | None:
     if raw is None:
         return None
@@ -348,6 +364,15 @@ def _parse_frequency_arg(raw: str | None) -> Any | None:
         except json.JSONDecodeError as exc:
             raise SystemExit(f"Invalid frequency JSON: {exc.msg}") from exc
     return trimmed
+
+
+def _require_style_id(value: str) -> str:
+    raw = str(value or "").strip()
+    if not raw:
+        raise SystemExit("Invalid style id: empty string")
+    if len(raw) < 3 or len(raw) > 120:
+        raise SystemExit(f"Invalid style id: expected 3-120 chars, got {value!r}")
+    return raw
 
 
 def _build_ai_payload(
@@ -687,6 +712,62 @@ def cmd_templates_delete(vibe: VibeEnv, timeout_seconds: int, template_id: str) 
         return 0 if (DRY_RUN or res.status in (200, 204)) else 1
 
 
+def cmd_styles_list(vibe: VibeEnv, timeout_seconds: int) -> int:
+    if DRY_RUN:
+        _call("GET", _url(vibe, "/vibe/agent/styles"), headers=_headers(vibe), timeout_seconds=timeout_seconds, retries=0)
+        return 0
+    res = _call("GET", _url(vibe, "/vibe/agent/styles"), headers=_headers(vibe), timeout_seconds=timeout_seconds, retries=2)
+    _terminate_guard(res)
+    _print_json(_result_payload(res))
+    return 0 if res.status == 200 else 1
+
+
+def cmd_styles_create(vibe: VibeEnv, timeout_seconds: int, payload: dict[str, Any]) -> int:
+    with _auto_connection(vibe, enable=True, timeout_seconds=timeout_seconds) as conn_id:
+        res = _call(
+            "POST",
+            _url(vibe, "/vibe/agent/styles"),
+            headers=_headers(vibe, connection_id=conn_id),
+            json_body=payload,
+            timeout_seconds=timeout_seconds,
+            retries=2,
+        )
+        _terminate_guard(res)
+        _print_json(_result_payload(res))
+        return 0 if (DRY_RUN or res.status == 200) else 1
+
+
+def cmd_styles_update(vibe: VibeEnv, timeout_seconds: int, style_id: str, payload: dict[str, Any]) -> int:
+    style_id = _require_style_id(style_id)
+    with _auto_connection(vibe, enable=True, timeout_seconds=timeout_seconds) as conn_id:
+        res = _call(
+            "PATCH",
+            _url(vibe, f"/vibe/agent/styles/{style_id}"),
+            headers=_headers(vibe, connection_id=conn_id),
+            json_body=payload,
+            timeout_seconds=timeout_seconds,
+            retries=2,
+        )
+        _terminate_guard(res)
+        _print_json(_result_payload(res))
+        return 0 if (DRY_RUN or res.status == 200) else 1
+
+
+def cmd_styles_delete(vibe: VibeEnv, timeout_seconds: int, style_id: str) -> int:
+    style_id = _require_style_id(style_id)
+    with _auto_connection(vibe, enable=True, timeout_seconds=timeout_seconds) as conn_id:
+        res = _call(
+            "DELETE",
+            _url(vibe, f"/vibe/agent/styles/{style_id}"),
+            headers=_headers(vibe, connection_id=conn_id),
+            timeout_seconds=timeout_seconds,
+            retries=2,
+        )
+        _terminate_guard(res)
+        _print_json(_result_payload(res))
+        return 0 if (DRY_RUN or res.status == 200) else 1
+
+
 def cmd_subscriptions_create(
     vibe: VibeEnv,
     timeout_seconds: int,
@@ -983,6 +1064,21 @@ def main(argv: list[str]) -> int:
     td = templates_sub.add_parser("delete")
     td.add_argument("--id", required=True)
 
+    styles = sub.add_parser("styles")
+    styles_sub = styles.add_subparsers(dest="styles_cmd", required=True)
+    styles_sub.add_parser("list")
+    stc = styles_sub.add_parser("create")
+    stc_payload = stc.add_mutually_exclusive_group(required=True)
+    stc_payload.add_argument("--payload-json", default=None, help="完整 styles create JSON 请求体。")
+    stc_payload.add_argument("--payload-file", default=None, help="从 JSON 文件读取完整 styles create 请求体。")
+    stu = styles_sub.add_parser("update")
+    stu.add_argument("--id", required=True, help="style id（内置或自定义风格标识）。")
+    stu_payload = stu.add_mutually_exclusive_group(required=True)
+    stu_payload.add_argument("--payload-json", default=None, help="styles patch JSON 请求体。")
+    stu_payload.add_argument("--payload-file", default=None, help="从 JSON 文件读取 styles patch 请求体。")
+    std = styles_sub.add_parser("delete")
+    std.add_argument("--id", required=True, help="style id（内置或自定义风格标识）。")
+
     subs = sub.add_parser("subscriptions")
     subs_sub = subs.add_subparsers(dest="subs_cmd", required=True)
     sc = subs_sub.add_parser("create")
@@ -1136,6 +1232,27 @@ def main(argv: list[str]) -> int:
                 )
             if args.templates_cmd == "delete":
                 return cmd_templates_delete(vibe, timeout_seconds, args.id)
+        if args.cmd == "styles":
+            if args.styles_cmd == "list":
+                return cmd_styles_list(vibe, timeout_seconds)
+            if args.styles_cmd == "create":
+                payload = _load_required_json_object_input(
+                    inline_json=args.payload_json,
+                    file_path=args.payload_file,
+                    name="payload",
+                    allow_empty=False,
+                )
+                return cmd_styles_create(vibe, timeout_seconds, payload)
+            if args.styles_cmd == "update":
+                payload = _load_required_json_object_input(
+                    inline_json=args.payload_json,
+                    file_path=args.payload_file,
+                    name="payload",
+                    allow_empty=False,
+                )
+                return cmd_styles_update(vibe, timeout_seconds, args.id, payload)
+            if args.styles_cmd == "delete":
+                return cmd_styles_delete(vibe, timeout_seconds, args.id)
         if args.cmd == "subscriptions":
             if args.subs_cmd == "create":
                 derived_plan = _load_json_input(

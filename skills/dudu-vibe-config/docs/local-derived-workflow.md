@@ -39,8 +39,9 @@ python3 scripts/client.py subscriptions update \
 
 ## 模板边界
 
-当前 `/vibe/agent/templates` 只接受模板元数据，不支持显式写入模板级 `derivedQuery / derivedPlan`。
+当前 `/vibe/agent/templates` 仍只接受模板元数据，不支持显式写入模板级 `derivedQuery / derivedPlan`。
+但从 `dudu` 2026-04-13 的最新实现看，`search` 模板在创建时会由服务端自动预生成并持久化模板级 `derived_*`。
 
 因此：
 - 订阅可以“本地生成 `derived_*` 后显式写回”
-- 模板只能“先在本地优化 query/prompt”，再调用服务端创建
+- 模板只能“先在本地优化 query/prompt”，再调用服务端创建并让服务端自动持久化模板 derived 结果

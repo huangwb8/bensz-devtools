@@ -2,17 +2,16 @@
 # 说明：本 skill 的脚本不依赖第三方库（如 PyYAML），因此这里保持“扁平 + 仅标量/列表”的 YAML，便于稳定解析。
 
 skill_name: dudu-vibe-config
-skill_version: 0.6.0
-skill_description: "dudu 氛围配置（Vibe）远程桥梁：通过 /vibe/agent/* 在受限范围内管理模板/订阅/报道/域名规则。"
+skill_version: 0.7.0
+skill_description: "dudu 氛围配置（Vibe）远程桥梁：通过 /vibe/agent/* 在受限范围内管理模板/报道风格/订阅/报道/域名规则。"
 skill_author: "Bensz Conan"
 
 default_vibe_url: "http://localhost:3001"
 request_timeout_seconds: 15
 heartbeat_interval_seconds: 30
 default_subscription_ai_sdk: "codex_cli"
-default_subscription_ai_model: "gpt-5.4"
+default_subscription_ai_model: ""
 default_subscription_ai_reasoning_effort: "medium"
-default_local_derived_mode: "host_ai"
 default_local_derived_runner: "auto"
 local_derived_timeout_seconds: 180
 

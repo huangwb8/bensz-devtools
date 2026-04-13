@@ -265,6 +265,146 @@ class CliReliabilityTests(unittest.TestCase):
 
         self.assertIn("requires --prompt", str(ctx.exception))
 
+    def test_domains_set_dry_run_without_reset_returns_structured_error(self) -> None:
+        vibe = VibeEnv(url="http://localhost:3001", key="", url_source="default", key_source="missing")
+        stdout = io.StringIO()
+        with patch.object(client, "resolve_vibe_env", return_value=vibe):
+            with contextlib.redirect_stdout(stdout):
+                code = client.main(["--dry-run", "domains", "set", "--allowlist", "example.com"])
+
+        self.assertEqual(code, 2)
+        payload = json.loads(stdout.getvalue())
+        self.assertEqual(payload["error"], "domains_set_merge_requires_network")
+
+    def test_domains_set_merges_existing_rules_before_put(self) -> None:
+        vibe = VibeEnv(
+            url="http://localhost:3001",
+            key="test_key_long_enough_123456",
+            url_source="default",
+            key_source="os_env",
+        )
+        calls: list[tuple[str, str, object | None]] = []
+        stdout = io.StringIO()
+        responses = iter(
+            [
+                client.HttpResult(
+                    status=200,
+                    headers={},
+                    body_text="",
+                    json={"allowlist": ["example.com"], "blocklist": ["bad.com"], "keywords": ["ai"]},
+                ),
+                client.HttpResult(
+                    status=200,
+                    headers={},
+                    body_text="",
+                    json={"connectionId": "22222222-2222-4222-8222-222222222222"},
+                ),
+                client.HttpResult(
+                    status=200,
+                    headers={},
+                    body_text="",
+                    json={"allowlist": ["example.com", "news.com"], "blocklist": ["bad.com"], "keywords": ["ai", "search"]},
+                ),
+                client.HttpResult(status=200, headers={}, body_text="", json={"ok": True}),
+            ]
+        )
+
+        def fake_request_json(
+            method: str,
+            url: str,
+            *,
+            headers: dict[str, str],
+            json_body: object | None = None,
+            timeout_seconds: int,
+            retries: int,
+        ) -> client.HttpResult:
+            del headers, timeout_seconds, retries
+            calls.append((method, url, json_body))
+            return next(responses)
+
+        with patch.object(client, "resolve_vibe_env", return_value=vibe), patch.object(
+            client, "request_json", side_effect=fake_request_json
+        ):
+            with contextlib.redirect_stdout(stdout):
+                code = client.main(
+                    ["domains", "set", "--allowlist", "news.com", "--keywords", "search", "--keywords", "ai"]
+                )
+
+        self.assertEqual(code, 0)
+        self.assertEqual(calls[0][0:2], ("GET", "http://localhost:3001/vibe/agent/domains/rules"))
+        self.assertEqual(calls[1][0:2], ("POST", "http://localhost:3001/vibe/agent/connect"))
+        self.assertEqual(calls[2][0:2], ("PUT", "http://localhost:3001/vibe/agent/domains/rules"))
+        self.assertEqual(
+            calls[2][2],
+            {"allowlist": ["example.com", "news.com"], "blocklist": ["bad.com"], "keywords": ["ai", "search"]},
+        )
+        self.assertEqual(calls[3][0:2], ("POST", "http://localhost:3001/vibe/agent/disconnect"))
+        payload = json.loads(stdout.getvalue())
+        self.assertEqual(payload["status"], 200)
+        self.assertEqual(payload["rules"]["allowlist"], ["example.com", "news.com"])
+
+    def test_styles_create_dry_run_reads_payload_file(self) -> None:
+        vibe = VibeEnv(url="http://localhost:3001", key="", url_source="default", key_source="missing")
+        stdout = io.StringIO()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            payload_file = Path(tmpdir) / "style.json"
+            payload_file.write_text(
+                json.dumps(
+                    {
+                        "name": "我的研究综述",
+                        "category": "professional",
+                        "description": "面向研究型报道",
+                        "sectionStrategy": "style",
+                        "citationStyle": "literature_review",
+                        "articleStructure": ["摘要", "背景", "结论"],
+                        "tone": "严谨",
+                        "targetAudience": "研究人员",
+                        "examples": ["Example 1"],
+                        "roleDefault": "资深研究编辑",
+                        "extraRules": "保留引用",
+                        "writingGuide": "优先给出证据。",
+                    },
+                    ensure_ascii=False,
+                ),
+                encoding="utf-8",
+            )
+            with patch.object(client, "resolve_vibe_env", return_value=vibe):
+                with contextlib.redirect_stdout(stdout):
+                    code = client.main(["--dry-run", "styles", "create", "--payload-file", str(payload_file)])
+
+        self.assertEqual(code, 0)
+        payload = next(
+            item for item in _parse_json_stream(stdout.getvalue()) if item.get("url") == "http://localhost:3001/vibe/agent/styles"
+        )
+        self.assertEqual(payload["method"], "POST")
+        self.assertEqual(payload["json_body"]["name"], "我的研究综述")
+
+    def test_styles_update_dry_run_uses_patch_and_style_id(self) -> None:
+        vibe = VibeEnv(url="http://localhost:3001", key="", url_source="default", key_source="missing")
+        stdout = io.StringIO()
+        with patch.object(client, "resolve_vibe_env", return_value=vibe):
+            with contextlib.redirect_stdout(stdout):
+                code = client.main(
+                    [
+                        "--dry-run",
+                        "styles",
+                        "update",
+                        "--id",
+                        "deep_research",
+                        "--payload-json",
+                        '{"description":"更新后的说明"}',
+                    ]
+                )
+
+        self.assertEqual(code, 0)
+        payload = next(
+            item
+            for item in _parse_json_stream(stdout.getvalue())
+            if item.get("url") == "http://localhost:3001/vibe/agent/styles/deep_research"
+        )
+        self.assertEqual(payload["method"], "PATCH")
+        self.assertEqual(payload["json_body"], {"description": "更新后的说明"})
+
 
 class EnvCompatibilityTests(unittest.TestCase):
     def test_env_file_supports_dudu_base_url_and_dudu_vibe_api_aliases(self) -> None:

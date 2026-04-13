@@ -1,19 +1,20 @@
 # dudu-vibe-config
 
-`dudu-vibe-config` 是一个 **“桥梁”Skill**：让你在 Claude Code / OpenAI Codex 等 Vibe Coding 工具里，通过 `dudu` 的 **Vibe Agent API**（`/vibe/agent/*`）远程优化“氛围配置”（模板/订阅/报道/域名规则）。
+`dudu-vibe-config` 是一个 **“桥梁”Skill**：让你在 Claude Code / OpenAI Codex 等 Vibe Coding 工具里，通过 `dudu` 的 **Vibe Agent API**（`/vibe/agent/*`）远程优化“氛围配置”（模板/报道风格/订阅/报道/域名规则）。
 
 ## 适用场景
 
 - 批量维护域名规则（allowlist/blocklist/keywords）
 - 创建/删除模板（Templates）
+- 管理报道风格（Report Styles）：列出、创建、更新、删除
 - 创建/更新/退订订阅（Subscriptions），并可显式指定主题 AI 与检索式构建结果
 - 主动刷新订阅的 `derivedQuery / derivedPlan`
 - 触发生成报道、删除报道（Reports），并可在生成时临时覆盖 AI 配置
 
-## 当前对齐状态（2026-03-26 审计）
+## 当前对齐状态（2026-04-13 审计）
 
-- 当前 `dudu` 最新 `/vibe/agent/*` 实际开放的能力：模板 `add/delete`、订阅 `create/update/parse-prompt/delete`、报道 `generate/delete`、域名规则 `get/set`，以及 `ping/connect/heartbeat/disconnect`。
-- 模板创建已支持 `sourceType=search|rss_opml` 与可选 `opml`；当前 skill 已对齐该请求体。
+- 当前 `dudu` 最新 `/vibe/agent/*` 实际开放的能力：模板 `add/delete`、报道风格 `list/create/update/delete`、订阅 `create/update/parse-prompt/delete`、报道 `generate/delete`、域名规则 `get/set`，以及 `ping/connect/heartbeat/disconnect`。
+- 模板创建已支持 `sourceType=search|rss_opml` 与可选 `opml`；对于 `search` 模板，服务端会在创建时自动预生成并持久化模板级 `derivedQuery / derivedPlan`，当前 skill 不支持手工传入模板级 `derived_*`。
 - 当前 skill 的默认策略已切到 **AI 宿主型本地生成**：当你在 Codex / Claude Code 里直接使用本 skill 调整 subscription prompt / derived_* 时，推荐先在当前本地对话里生成 `derivedQuery / derivedPlan`，再显式写回 dudu，而不是把这一步默认交给 dudu 服务端。
 - 当前 skill 也新增了 **脚本自驱型本地生成**：`scripts/local_derive.py` 可直接调用本地 `codex` / `claude` CLI 生成 derived；`scripts/client.py subscriptions create|update --local-derived-script` 则可把“本地生成 + 写回 dudu”合成一条命令。
 - `subscriptions create/update` 现已支持显式写入 `derivedQuery` / `derivedPlan`；若不显式提供，服务端会按当时可用 AI 环境尝试刷新，并在返回体中带回 `derivedRefreshStatus`、`derivedQuery`、`derivedAt`。
@@ -22,7 +23,7 @@
 - 所有写请求默认**不自动重试**，避免在超时或瞬时 5xx 后重复创建连接、模板或订阅。
 - 新增订阅时，如未显式指定 AI 配置，CLI 默认会发送 `codex_cli + CLI/provider 默认模型 + medium`；也就是 `sdk=codex_cli`、`model=""`、`reasoningEffort=medium`。若你明确传入 `--sdk/--model/--reasoning-effort`，则以显式参数为准。
 - 新增模板接口当前只保存模板元数据，不保存 AI 配置；因此“默认 SDK”只会作用在后续基于该模板创建订阅时，不会额外写入不存在的模板字段。
-- 当前 `/vibe/agent/templates` 仍不支持显式写入模板级 `derivedQuery / derivedPlan`；因此模板场景下的本地生成主要用于先把 query/prompt 打磨好，真正的模板 derived 持久化仍由 dudu 服务端负责。
+- 当前 `/vibe/agent/templates` 仍不支持显式写入模板级 `derivedQuery / derivedPlan`；因此模板场景下的本地生成主要用于先把 query/prompt 打磨好，再交由 dudu 服务端自动持久化模板 derived 结果。
 
 ## 依赖与约束
 
@@ -61,9 +62,11 @@ python3 scripts/env_check.py --env-file /path/to/.env
 1) 启动 dudu（Docker）
 
 ```bash
-cd /Volumes/2T01/winE/Starup/dudu/docker
+cd ../dudu/docker
 docker compose up -d --build
 ```
+
+如果你的本地目录布局不是“`bensz-devtools` 与 `dudu` 同级”，请把 `../dudu/docker` 改成你自己的 `dudu/docker` 路径。
 
 2) 检查环境并 ping
 
@@ -86,7 +89,7 @@ python3 scripts/client.py doctor --watch-seconds 120
 - 服务端重算：`subscriptions parse-prompt`
   - 只在你明确想复用 dudu 主项目的 AI 环境，或本地生成不可用时使用。
 
-更多说明见：[local-derived-workflow.md](/Volumes/2T01/winE/Starup/bensz-devtools/skills/dudu-vibe-config/docs/local-derived-workflow.md)
+更多说明见 [local-derived-workflow.md](docs/local-derived-workflow.md)。
 
 ## 常用命令
 
@@ -111,6 +114,13 @@ python3 scripts/client.py --dry-run domains set --reset --allowlist example.com
 python3 scripts/client.py templates add --title "模板标题" --query "检索词/提示词" --frequency daily
 python3 scripts/client.py templates add --title "RSS 模板" --query "RSS 导入模板" --frequency daily --source-type rss_opml --opml '<opml version="2.0">...</opml>'
 python3 scripts/client.py templates delete --id <template-id>
+# 当前模板 derived 由 dudu 服务端在创建 search 模板时自动生成并持久化；CLI 不支持手工传模板 derived
+
+# 报道风格
+python3 scripts/client.py styles list
+python3 scripts/client.py styles create --payload-file /path/to/style.json
+python3 scripts/client.py styles update --id custom_style --payload-json '{"description":"更新后的说明"}'
+python3 scripts/client.py styles delete --id custom_style
 
 # 订阅
 # 未传 AI 参数时，默认创建为 codex_cli + CLI/provider 默认模型 + medium
@@ -170,6 +180,13 @@ python3 scripts/client.py reports delete --topic-id <topic-uuid> --report-id <re
 - 仅在 `subscriptions create` 且用户未显式指定对应字段时自动补齐。
 - 若你显式传入 `--sdk claude_code`、`--model ""` 或其他覆盖值，CLI 不会强行改写你的选择。
 - 模板 API 当前没有 `ai` 字段，所以 `templates add` 不会持久化上述默认 AI 配置。
+
+## 报道风格 JSON
+
+- `styles create` / `styles update` 走的是与上游 `/vibe/agent/styles` 一致的 JSON 契约。
+- 为了减少桥梁层参数漂移，CLI 当前使用 `--payload-json` / `--payload-file` 直接透传对象，而不是再造一层大量命令行 flags。
+- `styles create` 的完整字段可参考：`name`、`category`、`description`、`sectionStrategy`、`citationStyle`、`articleStructure`、`tone`、`targetAudience`、`examples`、`roleDefault`、`roleByTier`、`extraRules`、`writingGuide`、`visibility`、`baseStyle`。
+- `styles update` 只需要传你要改的字段子集；`--id` 使用现有 `style id`（内置或自定义）。
 
 ## 安全建议
 

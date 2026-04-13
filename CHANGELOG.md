@@ -7,6 +7,7 @@
 ### Changed
 
 - 使用 `compact-bensz-skills` 收紧 `skills/dudu-vibe-config` 与 `skills/bensz-channel-vibe-config` 的工作型 Markdown，保留触发语义、关键命令、安全边界与默认路径，同时降低上下文体积
+- 基于 2026-04-13 对 `dudu` 最新 `/vibe/agent/*` 源码审计，同步更新仓库入口文档：`dudu-vibe-config` 的能力范围扩展为“模板、报道风格、订阅、报道、域名规则”
 - 将 `skills/bensz-channel-devtools` 重命名为 `skills/bensz-channel-vibe-config`
 - 同步更新仓库入口文档、skill 元数据、脚本中的默认 skill 名称与命令示例
 - 将 `bensz-channel-vibe-config` 的能力说明更新为“频道、标签、文章、评论、用户”，并同步来源仓库路径到 `/Volumes/2T01/winE/Starup/bensz-channel`
