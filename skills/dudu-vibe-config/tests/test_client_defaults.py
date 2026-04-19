@@ -363,6 +363,8 @@ class CliReliabilityTests(unittest.TestCase):
                         "roleDefault": "资深研究编辑",
                         "extraRules": "保留引用",
                         "writingGuide": "优先给出证据。",
+                        "visibility": "market",
+                        "baseStyle": "deep_research",
                     },
                     ensure_ascii=False,
                 ),
@@ -378,6 +380,8 @@ class CliReliabilityTests(unittest.TestCase):
         )
         self.assertEqual(payload["method"], "POST")
         self.assertEqual(payload["json_body"]["name"], "我的研究综述")
+        self.assertEqual(payload["json_body"]["visibility"], "market")
+        self.assertEqual(payload["json_body"]["baseStyle"], "deep_research")
 
     def test_styles_update_dry_run_uses_patch_and_style_id(self) -> None:
         vibe = VibeEnv(url="http://localhost:3001", key="", url_source="default", key_source="missing")

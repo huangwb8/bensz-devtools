@@ -4,6 +4,26 @@
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-04-19
+
+### Added（新增）
+
+- 新增 `plans/2026-04-19-vibe-contract-audit-and-hardening.md`：沉淀本轮基于 dudu 最新 `Vibe Agent` 源码的审计结论、边界判断与验证计划
+- 扩充 CLI 回归测试：覆盖风格市场字段透传，以及最新 Vibe 边界说明
+
+### Changed（变更）
+
+- 基于 2026-04-19 对 `/Volumes/2T01/winE/Starup/dudu` 最新 `/vibe/agent/*` 源码审计，更新 skill 口径：补充 `styles list` 当前实际返回的是 `available` 目录（内置 + 私有 + 市场可见），并明确 `styles create/update` 已可透传 `visibility` / `baseStyle`
+- 补充订阅边界说明：当前 dudu 主项目虽已有订阅级 `search_mode`，但 `/vibe/agent/subscriptions*` 仍未开放；同时说明 `subscriptions update` / `parse-prompt --ai` 会在服务端顺带同步 `generation_ai_config`
+- 补充删除语义说明：删除最后一个订阅时，当前服务端会一起清理 orphan topic 的运行工件、报道工件与 system events 等残留
+- 补充模板边界说明：当前 `/vibe/agent/templates` 即使在 `rss_opml` 场景下也仍要求非空 `query`
+- `config.yaml` 升级到 `0.8.0`，与本轮审计后的 README / SKILL / CLI 帮助信息保持一致
+
+### Fixed（修复）
+
+- 修复仓库与 skill 文档对最新 dudu 能力边界的表述滞后问题，避免用户误以为 bridge skill 已支持 `searchMode` 或可绕过 Vibe 路由直接使用主站订阅字段
+- 修复 CLI 帮助和示例对 `rss_opml` 模板、风格市场可见性等场景说明不足的问题
+
 ## [0.7.0] - 2026-04-13
 
 ### Added（新增）

@@ -6,6 +6,9 @@
 
 ### Changed
 
+- 基于 2026-04-19 对 `/Volumes/2T01/winE/Starup/dudu` 最新 `Vibe Agent` 源码再次审计，更新 `skills/dudu-vibe-config` 的契约口径：补充风格市场/可见性、最后一个订阅删除时的 orphan 清理闭环、Vibe 仍未开放 `searchMode`、以及 `rss_opml` 模板在当前 Vibe 路由下仍要求非空 `query` 等边界
+- 同步更新仓库级入口文档：`AGENTS.md`、`README.md`、`skills/README.md` 统一反映 `dudu-vibe-config` 的最新范围与 `bensz-channel-vibe-config` 的标签能力
+- 调整 `.gitignore`：为 `skills/dudu-vibe-config/plans/2026-04-19-vibe-contract-audit-and-hardening.md` 增加精确例外，保留本轮计划沉淀，同时继续忽略其它历史批次产物
 - 使用 `compact-bensz-skills` 收紧 `skills/dudu-vibe-config` 与 `skills/bensz-channel-vibe-config` 的工作型 Markdown，保留触发语义、关键命令、安全边界与默认路径，同时降低上下文体积
 - 基于 2026-04-13 对 `dudu` 最新 `/vibe/agent/*` 源码审计，同步更新仓库入口文档：`dudu-vibe-config` 的能力范围扩展为“模板、报道风格、订阅、报道、域名规则”
 - 将 `skills/bensz-channel-devtools` 重命名为 `skills/bensz-channel-vibe-config`
@@ -20,6 +23,7 @@
 
 ### Added
 
+- 为 `skills/dudu-vibe-config` 新增 2026-04-19 契约审计计划沉淀，并补充最新 Vibe 边界回归测试
 - 为 `skills/bensz-channel-vibe-config` 新增 tags 管理能力、文章标签关联/筛选/清空能力，以及自动化 CLI 回归测试
 
 ## [1.0.0] - 2026-03-12

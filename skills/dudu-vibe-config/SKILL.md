@@ -36,14 +36,22 @@ metadata:
 - 报道：生成 / 删除
 - 域名规则：读取 / 更新
 
-## 当前对齐状态（2026-04-13 审计）
+## 当前能力边界
 
-- 当前 `/vibe/agent/*` 已覆盖模板 `add/delete`、报道风格 `list/create/update/delete`、订阅 `create/update/parse-prompt/delete`、报道 `generate/delete`、域名规则 `get/set`。
+- 最近一次基于上游源码的审计时间与变更说明，统一记录在 `CHANGELOG.md` 与 `plans/2026-04-19-vibe-contract-audit-and-hardening.md`；本节只保留当前仍然生效的能力与限制。
+
+- 当前 `/vibe/agent/*` 已覆盖模板 `add/delete`、报道风格 `list/create/update/delete`、订阅 `create/update/parse-prompt/delete`、报道 `generate/delete`、域名规则 `get/set`，以及 `ping/connect/heartbeat/disconnect`。
 - `templates add` 已对齐 `sourceType=search|rss_opml` 与可选 `opml`；其中 `search` 模板会由服务端在创建时自动预生成并持久化模板级 `derivedQuery / derivedPlan`，当前 CLI 仍不支持手工传入模板级 `derived_*`。
+- 当前 Vibe 模板路由仍要求 `query` 为非空字符串；也就是说即使主站 `templates` API 已允许 `rss_opml` 模板持久化空 query，bridge skill 走 `/vibe/agent/templates` 时仍必须显式提供 `--query`。
 - 默认 derived 路径是“AI 宿主型本地生成”：先在当前对话里生成 `derivedQuery / derivedPlan`，再显式写回 dudu。
 - 可选“脚本自驱型本地生成”：用 `python3 scripts/local_derive.py ...` 预览，或在 `subscriptions create/update` 里加 `--local-derived-script`，先调用本地 `codex` / `claude` CLI 生成，再写回 dudu。
 - `subscriptions create/update` 支持 `derivedQuery` / `derivedPlan`；需要服务端重算时，用 `subscriptions parse-prompt` 或更新时的 `--refresh-derived/--no-refresh-derived`。
 - `subscriptions update` 只接受 `name/prompt/frequency/ai/derivedQuery/derivedPlan/refreshDerived`；旧字段 `groupId`、`generationAi`、`tier`、`style` 会在本地直接拒绝。
+- dudu 主项目当前已存在订阅级 `search_mode` 等主站字段，但 `/vibe/agent/subscriptions*` 仍未开放这些字段；本 skill 不会假装支持，也不会越权改走 `/topics/*`。
+- `subscriptions update` 与 `subscriptions parse-prompt --ai ...` 会由服务端顺带同步 `topic_subscriptions.generation_ai_config`，以保持手动“生成报道”和订阅默认 AI 的口径一致；但 bridge skill 仍不接受显式 `--generation-*`，避免和当前 Vibe 契约漂移。
+- `styles list` 当前走的是 `available` 视图：会返回“内置风格 + 当前用户私有风格 + 市场可见风格”；bridge skill 不额外暴露 `mine/market/builtin` 过滤参数。
+- `styles create/update` 已可透传 `visibility=private|market` 与 `baseStyle`，可用于私有风格和市场风格发布/继承。
+- 删除最后一个订阅时，当前服务端会同时清理 orphan topic 的运行工件、报道工件、notes/system events 等残留；bridge skill 已按这个最新闭环理解返回结果，不再把它当作“仅删一条订阅关系”。
 - 所有写请求默认不自动重试；新增订阅默认 AI 为 `sdk=codex_cli`、`model=""`、`reasoningEffort=medium`，显式参数优先。
 - 模板接口仍不保存模板级 AI 配置；若需要影响模板预生成的 derived 结果，应先在本地优化 `query/prompt`，再调用服务端创建。
 
@@ -79,9 +87,10 @@ python3 scripts/client.py doctor
 ```
 
 3. 先决定 derived 路径，再做变更
-- 报道风格：先 `styles list` 明确现有 `style id`，再按需 `styles create/update/delete`
+- 报道风格：先 `styles list` 看当前“Vibe 可见风格目录”（内置 + 自己的私有 + 市场可见），再按需 `styles create/update/delete`
 - 域名规则：先 `domains get`，再 `domains set`；默认安全合并，只有“完全替换”才用 `--reset`
 - 订阅 prompt / `derived_*`：默认先本地产生 `derivedQuery / derivedPlan` 再显式写回；只有用户明确要求服务端重算，或本地生成不可用时，才用 `subscriptions parse-prompt`
+- 订阅字段边界：当前 Vibe 仍只允许修改 `name/prompt/frequency/ai/derivedQuery/derivedPlan/refreshDerived`；若用户想调 `searchMode`、`groupId`、`generationAi` 等主站字段，应明确告知“当前 bridge skill 不覆盖”
 - 宿主 AI 想把本地生成下沉到脚本时，用 `python3 scripts/local_derive.py ...` 或 `subscriptions create/update --local-derived-script`
 - 模板 / 报道按需执行；所有写操作默认自动 `connect → disconnect`
 
@@ -100,8 +109,8 @@ python3 scripts/client.py --dry-run domains set --reset --allowlist example.com
 - 命令行本地生成并写回：`subscriptions update --topic-id ... --prompt ... --local-derived-script`
 - 让服务端重算 derived：`subscriptions parse-prompt --topic-id ...`
 - 切到 `codex_cli` 高推理：`subscriptions update --topic-id ... --sdk codex_cli --reasoning-effort high --local-derived-script`
-- 创建 RSS 模板：`templates add --source-type rss_opml --opml '<opml ...>' ...`
-- 创建自定义风格：`styles create --payload-file ./style.json`
+- 创建 RSS 模板：`templates add --query "RSS 导入模板" --source-type rss_opml --opml '<opml ...>' ...`
+- 创建市场风格：`styles create --payload-file ./style-market.json`
 - 触发报道生成：`reports generate --topic-id ...`
 - 临时覆盖本次生成 AI：`reports generate --topic-id ... --sdk codex_cli --reasoning-effort high`
 
@@ -111,6 +120,7 @@ python3 scripts/client.py --dry-run domains set --reset --allowlist example.com
 - 客户端会优先尝试 `PATCH /vibe/agent/subscriptions/:topicId`，再回退尝试 `PUT /vibe/agent/subscriptions/:topicId`
 - 若当前 dudu 服务未暴露该能力，客户端会输出结构化 `unsupported_server_capability`
 - 若用户传入当前 Vibe 契约不支持的旧字段（`groupId` / `generationAi` / `tier` / `style`），客户端会在本地直接给出结构化拒绝
+- 当前 dudu 主项目虽已支持订阅级 `search_mode`，但 Vibe 路由仍未开放；本 skill 也不会私自绕过到主站 API
 - **不会** 自动走“删除旧订阅 + 新建订阅”的危险兜底，因为那会改变 topic id，并可能丢失历史报道/进度/引用关系
 
 ## 订阅提示词策略

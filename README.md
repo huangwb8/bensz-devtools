@@ -23,6 +23,7 @@
 - 目标系统：`dudu`
 - 能力范围：模板、报道风格、订阅、报道、域名规则
 - 安全边界：仅访问 `/vibe/agent/*`
+- 当前口径：对齐 2026-04-19 的 dudu 最新 `Vibe Agent` 路由；风格当前通过 `available` 视图暴露“内置 + 自己的私有 + 市场可见”条目，`searchMode` 等主站订阅字段仍未在 Vibe 路由开放
 
 ### `skills/bensz-channel-vibe-config`
 

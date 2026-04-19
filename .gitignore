@@ -64,10 +64,13 @@ __pycache__/
 .parallel_vibe/
 skills/*/.compact-bensz-skills/
 
-# Skill 运行时产物（计划与测试报告，不纳入版本控制）
-# 仅为需要版本化的回归测试提供精确例外，避免把历史批次产物整目录放出来
+# Skill 运行时产物（计划与测试报告默认不纳入版本控制）
+# 仅为需要版本化的计划/回归测试提供精确例外，避免把历史批次产物整目录放出来
 skills/*/plans/
 skills/*/tests/
+!skills/dudu-vibe-config/plans/
+skills/dudu-vibe-config/plans/*
+!skills/dudu-vibe-config/plans/2026-04-19-vibe-contract-audit-and-hardening.md
 !skills/dudu-vibe-config/tests/
 skills/dudu-vibe-config/tests/*
 !skills/dudu-vibe-config/tests/test_client_defaults.py

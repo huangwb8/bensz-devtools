@@ -1055,7 +1055,11 @@ def main(argv: list[str]) -> int:
     templates_sub = templates.add_subparsers(dest="templates_cmd", required=True)
     ta = templates_sub.add_parser("add")
     ta.add_argument("--title", required=True)
-    ta.add_argument("--query", required=True)
+    ta.add_argument(
+        "--query",
+        required=True,
+        help="模板 query/prompt。注意：当前 /vibe/agent/templates 即使是 rss_opml 也仍要求非空 query。",
+    )
     ta.add_argument("--frequency", required=True, choices=["hourly", "daily", "weekly"])
     ta.add_argument("--price", type=int, default=0)
     ta.add_argument("--source-type", default="search", choices=["search", "rss_opml"])
@@ -1066,7 +1070,7 @@ def main(argv: list[str]) -> int:
 
     styles = sub.add_parser("styles")
     styles_sub = styles.add_subparsers(dest="styles_cmd", required=True)
-    styles_sub.add_parser("list")
+    styles_sub.add_parser("list", help="列出当前 Vibe 可见风格（内置 + 自己的私有 + 市场可见）。")
     stc = styles_sub.add_parser("create")
     stc_payload = stc.add_mutually_exclusive_group(required=True)
     stc_payload.add_argument("--payload-json", default=None, help="完整 styles create JSON 请求体。")

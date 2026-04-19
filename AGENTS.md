@@ -14,9 +14,9 @@
 
 目前仓库内的核心 skill 有：
 
-- `skills/dudu-vibe-config`：管理 `dudu` 的模板、订阅、报道、域名规则
+- `skills/dudu-vibe-config`：管理 `dudu` 的模板、报道风格、订阅、报道、域名规则
   - 源项目路径：`/Volumes/2T01/winE/Starup/dudu`
-- `skills/bensz-channel-vibe-config`：管理 `bensz-channel` 的频道、文章、评论、用户
+- `skills/bensz-channel-vibe-config`：管理 `bensz-channel` 的频道、标签、文章、评论、用户
   - 源项目路径：`/Volumes/2T01/winE/Starup/bensz-channel`
 
 它们都属于“桥梁型 skill”：
