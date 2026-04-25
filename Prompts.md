@@ -17,6 +17,17 @@
 
 # sub2api
 
+---
+
+介绍 https://github.com/huangwb8/sub2api 的最近几次commit/release的情况，写个文章介绍下。  发到 bensz channel 的 开发 频道上。 要求：
+
+- 开头第1段，结合既往 bensz channel 上和 sub2api 有关的文章一起讨论，这样比较有连贯性
+- 第2段开始，介绍最近的新变化。要求重点突出、较为详尽，让读者能切实地感受到项目的变化
+- 写作风格类似于 /Volumes/2T01/winE/我的坚果云/样式备份/网站/blognas.hwb0307.com/blog/new02/AGENTS.md ， 这样就更像是我写的文章
+- 文末要附带项目github地址
+
+---
+
 结合 https://github.com/huangwb8/sub2api 来聊一下我的一个尝试：基于一个成熟的代码库自定义功能。 我fork了sub2api这个项目，并且用ai开发了很多新的、有趣的功能。 我以此成功的构建了自己的API站： https://api.benszresearch.com 。你需要彻底了解我做了什么事情，然后写文章介绍这一切，然后发表在 bensz channel 的 开发 频道。具体要求：
 
 - 重点突出，有煽动性
