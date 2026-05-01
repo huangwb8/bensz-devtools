@@ -4,6 +4,11 @@
 
 ## [Unreleased]
 
+### Fixed（修复）
+
+- 修复宿主 AI 从 skill 安装目录执行脚本时无法自动发现仓库根目录 `remote.env` 的问题；环境解析现在会在当前工作目录候选文件之后、fallback 文件之前，从 `skill_root` 向上查找项目级 `remote.env`
+- `env_file_candidates` 新增 `remote.env`，并保留显式 `--env-file` 高于自动发现的优先级
+
 ## [0.8.0] - 2026-04-19
 
 ### Added（新增）

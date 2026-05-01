@@ -40,6 +40,34 @@ def _normalize_base_url(url: str) -> str:
     return u.rstrip("/")
 
 
+def _config_int(value: str | None, default: int) -> int:
+    if value is None:
+        return default
+    try:
+        parsed = int(value.strip())
+    except ValueError:
+        return default
+    return max(parsed, 0)
+
+
+def _project_env_paths(*, skill_root: Path, names: list[str], max_depth: int) -> list[Path]:
+    paths: list[Path] = []
+    seen: set[Path] = set()
+    current = skill_root.resolve()
+
+    for depth in range(max_depth + 1):
+        for name in names:
+            path = (current / name).resolve()
+            if path not in seen:
+                paths.append(path)
+                seen.add(path)
+        if current.parent == current or depth >= max_depth:
+            break
+        current = current.parent
+
+    return paths
+
+
 def resolve_vibe_env(*, skill_root: Path, env_file: Path | None = None) -> VibeEnv:
     config_path = skill_root / "config.yaml"
     config = load_flat_yaml(config_path)
@@ -57,7 +85,8 @@ def resolve_vibe_env(*, skill_root: Path, env_file: Path | None = None) -> VibeE
     #   1) OS env
     #   2) explicit --env-file (optional)
     #   3) cwd .env candidates
-    #   4) fallback env files (home-level)
+    #   4) project env files discovered by walking up from skill_root
+    #   5) fallback env files (home-level)
     sources: list[tuple[EnvSource, dict[str, str]]] = []
 
     os_env = {k: v for k, v in os.environ.items() if isinstance(v, str)}
@@ -71,6 +100,11 @@ def resolve_vibe_env(*, skill_root: Path, env_file: Path | None = None) -> VibeE
         p = (Path.cwd() / name).resolve()
         sources.append((EnvSource(kind="cwd_env", detail=str(p)), load_dotenv_file(p)))
 
+    project_names = config.lists.get("project_env_files", ["remote.env"])
+    project_max_depth = _config_int(config.scalars.get("project_env_max_depth"), 5)
+    for p in _project_env_paths(skill_root=skill_root, names=project_names, max_depth=project_max_depth):
+        sources.append((EnvSource(kind="project_env", detail=str(p)), load_dotenv_file(p)))
+
     for p in expand_user_paths(config.lists.get("fallback_env_files", [])):
         sources.append((EnvSource(kind="fallback_env", detail=str(p)), load_dotenv_file(p)))
 
@@ -82,7 +116,7 @@ def resolve_vibe_env(*, skill_root: Path, env_file: Path | None = None) -> VibeE
             k, v = _first_present(env, url_keys)
             if v is not None:
                 url_value = v
-                if src.kind in {"env_file", "cwd_env", "fallback_env"}:
+                if src.kind in {"env_file", "cwd_env", "project_env", "fallback_env"}:
                     url_source = EnvSource(kind=src.kind, detail=f"{k or '?'} ({src.detail})")
                 else:
                     url_source = EnvSource(kind=src.kind, detail=k or src.detail)
@@ -90,7 +124,7 @@ def resolve_vibe_env(*, skill_root: Path, env_file: Path | None = None) -> VibeE
             k, v = _first_present(env, key_keys)
             if v is not None:
                 key_value = v
-                if src.kind in {"env_file", "cwd_env", "fallback_env"}:
+                if src.kind in {"env_file", "cwd_env", "project_env", "fallback_env"}:
                     key_source = EnvSource(kind=src.kind, detail=f"{k or '?'} ({src.detail})")
                 else:
                     key_source = EnvSource(kind=src.kind, detail=k or src.detail)

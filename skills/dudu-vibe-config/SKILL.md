@@ -70,6 +70,7 @@ metadata:
 - `DUDU_VIBE_KEY`：长度需 ≥ 16
 - URL 兼容别名：`dudu_vibe_url`、`dudu_base_url`
 - KEY 兼容别名：`dudu_vibe_key`、`dudu_vibe_api`
+- 自动发现优先级：进程环境变量 > 显式 `--env-file` > 当前工作目录 `.env/.env.local/remote.env` > 从 skill 目录向上查找项目级 `remote.env` > fallback 文件
 
 ## 标准工作流（推荐）
 

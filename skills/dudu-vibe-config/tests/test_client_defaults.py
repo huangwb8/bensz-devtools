@@ -411,6 +411,31 @@ class CliReliabilityTests(unittest.TestCase):
 
 
 class EnvCompatibilityTests(unittest.TestCase):
+    def _write_minimal_config(self, skill_root: Path) -> None:
+        skill_root.mkdir(parents=True, exist_ok=True)
+        (skill_root / "config.yaml").write_text(
+            "\n".join(
+                [
+                    'default_vibe_url: "http://localhost:3001"',
+                    "env_url_keys:",
+                    "  - DUDU_VIBE_URL",
+                    "env_key_keys:",
+                    "  - DUDU_VIBE_KEY",
+                    "env_file_candidates:",
+                    "  - .env",
+                    "  - .env.local",
+                    "  - remote.env",
+                    "project_env_files:",
+                    "  - remote.env",
+                    "project_env_max_depth: 5",
+                    "fallback_env_files:",
+                    "  - ~/.dudu-vibe.env",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
     def test_env_file_supports_dudu_base_url_and_dudu_vibe_api_aliases(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             env_file = Path(tmpdir) / ".env"
@@ -436,6 +461,76 @@ class EnvCompatibilityTests(unittest.TestCase):
                 )
 
         self.assertIn("Invalid vibe URL scheme", str(ctx.exception))
+
+    def test_project_remote_env_is_discovered_from_skill_root_ancestors(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            project_root = Path(tmpdir) / "bensz-devtools"
+            skill_root = project_root / "skills" / "dudu-vibe-config"
+            self._write_minimal_config(skill_root)
+            (project_root / "remote.env").write_text(
+                "DUDU_VIBE_URL=127.0.0.1:3001\nDUDU_VIBE_KEY=project_key_long_enough_123456\n",
+                encoding="utf-8",
+            )
+            other_cwd = Path(tmpdir) / "elsewhere"
+            other_cwd.mkdir()
+
+            with patch.dict("os.environ", {}, clear=True), patch("pathlib.Path.cwd", return_value=other_cwd):
+                vibe = resolve_vibe_env(skill_root=skill_root)
+
+        self.assertEqual(vibe.url, "http://127.0.0.1:3001")
+        self.assertEqual(vibe.key, "project_key_long_enough_123456")
+        self.assertEqual(vibe.url_source.kind, "project_env")
+        self.assertEqual(vibe.key_source.kind, "project_env")
+        self.assertIn("remote.env", vibe.key_source.detail)
+
+    def test_explicit_env_file_takes_priority_over_project_remote_env(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            project_root = Path(tmpdir) / "bensz-devtools"
+            skill_root = project_root / "skills" / "dudu-vibe-config"
+            self._write_minimal_config(skill_root)
+            (project_root / "remote.env").write_text(
+                "DUDU_VIBE_URL=project.example\nDUDU_VIBE_KEY=project_key_long_enough_123456\n",
+                encoding="utf-8",
+            )
+            env_file = Path(tmpdir) / "explicit.env"
+            env_file.write_text(
+                "DUDU_VIBE_URL=explicit.example\nDUDU_VIBE_KEY=explicit_key_long_enough_123456\n",
+                encoding="utf-8",
+            )
+            other_cwd = Path(tmpdir) / "elsewhere"
+            other_cwd.mkdir()
+
+            with patch.dict("os.environ", {}, clear=True), patch("pathlib.Path.cwd", return_value=other_cwd):
+                vibe = resolve_vibe_env(skill_root=skill_root, env_file=env_file)
+
+        self.assertEqual(vibe.url, "http://explicit.example")
+        self.assertEqual(vibe.key, "explicit_key_long_enough_123456")
+        self.assertEqual(vibe.url_source.kind, "env_file")
+        self.assertEqual(vibe.key_source.kind, "env_file")
+
+    def test_cwd_remote_env_takes_priority_over_project_remote_env(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            project_root = Path(tmpdir) / "bensz-devtools"
+            skill_root = project_root / "skills" / "dudu-vibe-config"
+            self._write_minimal_config(skill_root)
+            (project_root / "remote.env").write_text(
+                "DUDU_VIBE_URL=project.example\nDUDU_VIBE_KEY=project_key_long_enough_123456\n",
+                encoding="utf-8",
+            )
+            cwd = Path(tmpdir) / "cwd"
+            cwd.mkdir()
+            (cwd / "remote.env").write_text(
+                "DUDU_VIBE_URL=cwd.example\nDUDU_VIBE_KEY=cwd_key_long_enough_123456\n",
+                encoding="utf-8",
+            )
+
+            with patch.dict("os.environ", {}, clear=True), patch("pathlib.Path.cwd", return_value=cwd):
+                vibe = resolve_vibe_env(skill_root=skill_root)
+
+        self.assertEqual(vibe.url, "http://cwd.example")
+        self.assertEqual(vibe.key, "cwd_key_long_enough_123456")
+        self.assertEqual(vibe.url_source.kind, "cwd_env")
+        self.assertEqual(vibe.key_source.kind, "cwd_env")
 
 
 if __name__ == "__main__":

@@ -55,15 +55,18 @@
 
 `.env` 搜索顺序（脚本自动查找）：
 
-1. 当前工作目录的 `.env` / `.env.local`
-2. `~/.dudu-vibe.env`
-3. `~/.config/dudu/vibe.env`
+1. 当前工作目录的 `.env` / `.env.local` / `remote.env`
+2. 从 skill 目录向上查找项目级 `remote.env`（默认最多 5 层，适配本仓库根目录凭证）
+3. `~/.dudu-vibe.env`
+4. `~/.config/dudu/vibe.env`
 
 也可以显式指定：
 
 ```bash
 python3 scripts/env_check.py --env-file /path/to/.env
 ```
+
+优先级始终是：进程环境变量 > 显式 `--env-file` > 当前工作目录候选文件 > 项目级 `remote.env` > fallback 文件。
 
 ## 快速开始（本机 + Docker）
 

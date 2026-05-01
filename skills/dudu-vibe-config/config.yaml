@@ -2,7 +2,7 @@
 # 说明：本 skill 的脚本不依赖第三方库（如 PyYAML），因此这里保持“扁平 + 仅标量/列表”的 YAML，便于稳定解析。
 
 skill_name: dudu-vibe-config
-skill_version: 0.8.0
+skill_version: 0.8.1
 skill_description: "dudu 氛围配置（Vibe）远程桥梁：通过 /vibe/agent/* 在受限范围内管理模板/报道风格/订阅/报道/域名规则。"
 skill_author: "Bensz Conan"
 
@@ -30,6 +30,12 @@ env_key_keys:
 env_file_candidates:
   - .env
   - .env.local
+  - remote.env
+
+project_env_files:
+  - remote.env
+
+project_env_max_depth: 5
 
 fallback_env_files:
   - "~/.dudu-vibe.env"
