@@ -15,7 +15,43 @@
 - 较为详尽，让读者能切实地感受到项目的变化
 - 文末要附带项目github地址
 
+# bensz-auto-contribution
+
+介绍 https://github.com/huangwb8/bensz-auto-contribution 这个新项目，写个文章介绍下。  发到 bensz channel 的 Vibe 频道上。 要求：
+
+- 要求重点突出、较为详尽，让读者能切实地感受到项目的变化
+- 写作风格类似于 /Volumes/2T01/winE/我的坚果云/样式备份/网站/blognas.hwb0307.com/blog/new02/AGENTS.md ， 这样就更像是我写的文章
+- 文末要附带项目github地址
+
+# BenszAPI
+
+---
+
+介绍 /Volumes/2T01/Github/sub2api 自上次发表BenszAPI 频道的相关文章以来的commit/release的情况，写个文章介绍下。 发到 bensz channel 的 BenszAPI 频道上。 要求：
+
+- 开头第1段，结合既往 bensz channel 上和 sub2api 有关的文章（有一些是草稿状态，因此不需要给出超链接，反正用户也看不到）一起讨论，这样比较有连贯性
+- 第2段开始，介绍那些用户可能感兴趣的新功能、新特性，或者一些重点被优化的点。要求重点突出、较为详尽，让读者能切实地感受到项目的变化。
+- 全程不可以出现openai、anthropic等国外大模型的任何字眼。
+- 不要用sub2api这个字眼，而是用BenszAPI
+- 写作风格类似于 /Volumes/2T01/winE/我的坚果云/样式备份/网站/blognas.hwb0307.com/blog/new02/AGENTS.md ， 这样就更像是我写的文章
+- 文末不需要附带项目github地址
+
+---
+
+介绍 /Volumes/2T01/Github/sub2api 自 2026-05-10 以来的commit/release的情况，写个文章介绍下。 发到 bensz channel 的 BenszAPI 频道上。 要求：
+
+- 开头第1段，结合既往 bensz channel 上和 sub2api 有关的文章（目前是草稿状态，因此不需要给出超链接，反正用户也看不到）一起讨论，这样比较有连贯性
+- 第2段开始，介绍那些用户可能感兴趣的新功能、新特性（比如画图/聊天功能、云盘同步之类、发票功能之类的）。要求重点突出、较为详尽，让读者能切实地感受到项目的变化。
+- 全程不可以出现openai、anthropic等国外大模型的任何字眼。
+- 不要用sub2api，而是用BenszAPI
+- 写作风格类似于 /Volumes/2T01/winE/我的坚果云/样式备份/网站/blognas.hwb0307.com/blog/new02/AGENTS.md ， 这样就更像是我写的文章
+- 文末不需要附带项目github地址
+
 # sub2api
+
+---
+
+ bensz channel 的 开发 频道上，和sub2api有关的论文设置为草稿状态。
 
 ---
 
@@ -35,6 +71,10 @@
 - 文末要附带项目github地址
 
 # Bensz-channel
+
+---
+
+在 bensz channel 里创建一个新频道，它的作用是“交流BenszAPI的使用心得”。然后发第1篇的和BenszAPI介绍有关的小文章，简短点； 内容的最后要鼓励大家发言； 结尾还要附上：BenszAPI 的链接 ： https://api.benszresearch.com (你也可以看看首页的内容，从而辅助你写这个小文章)
 
 ---
 
@@ -174,6 +214,7 @@ https://github.com/huangwb8/ChineseResearchLaTeX 的v4.0.0和v3之间有非常�
 - 第2段开始，重点介绍最近的一些更新。 要求
   - 重点突出
   - 较为详尽，让读者能切实地感受到项目的变化
+  - 写作风格类似于 /Volumes/2T01/winE/我的坚果云/样式备份/网站/blognas.hwb0307.com/blog/new02/AGENTS.md ， 这样就更像是我写的文章
   - 文末要附带项目github地址
 
 ---
