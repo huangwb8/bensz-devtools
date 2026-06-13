@@ -17,6 +17,17 @@
 
 # bensz-auto-contribution
 
+---
+
+介绍 https://github.com/huangwb8/bensz-auto-contribution自上次发表的相关文章以来的commit/release的情况，写个文章介绍下。 发到 bensz channel 的 Vibe 频道上。 要求：
+
+- 开头第1段，结合既往 bensz channel 上和 bensz-auto-contribution有关的文章（有一些是草稿状态，因此不需要给出超链接，反正用户也看不到）一起讨论，这样比较有连贯性
+- 第2段开始，介绍那些用户可能感兴趣的新功能、新特性，或者一些重点被优化的点。要求重点突出、较为详尽，让读者能切实地感受到项目的变化。
+- 技术原理不要介绍太多； 主要是从产品经理向用户介绍产品的口径来出发。要有高级感但又不脱离实际。写作风格类似于 /Volumes/2T01/winE/我的坚果云/样式备份/网站/blognas.hwb0307.com/blog/new02/AGENTS.md ， 这样就更像是我写的文章
+- 文末附带项目github地址。成文后直接发布，不用经过我审核。
+
+---
+
 介绍 https://github.com/huangwb8/bensz-auto-contribution 这个新项目，写个文章介绍下。  发到 bensz channel 的 Vibe 频道上。 要求：
 
 - 要求重点突出、较为详尽，让读者能切实地感受到项目的变化
@@ -24,6 +35,21 @@
 - 文末要附带项目github地址
 
 # BenszAPI
+
+---
+
+介绍 /Volumes/2T01/Github/sub2api 自上次发表BenszAPI 频道的相关文章以来的commit/release的情况，写个文章介绍下。 发到 bensz channel 的 BenszAPI 频道上。 要求：
+
+- 开头第1段，结合既往 bensz channel 上和 sub2api 有关的文章（有一些是草稿状态，因此不需要给出超链接，反正用户也看不到）一起讨论，这样比较有连贯性
+- 第2段开始，介绍那些用户可能感兴趣的新功能、新特性，或者一些重点被优化的点。要求重点突出、较为详尽，让读者能切实地感受到项目的变化。特别是：
+  - 插件功能正式在所有用户里内测， 用户新建API后只要选`智能（自动选择模板）`就可以无缝衔接我的Skill生态，不需要对Agent Skill生态有深入理解也可以完成复杂的科研工作。自定义模板功能支持Ultra、Max用户。
+  - 安全审查功能正式内测，基于OpenAI Moderation API； 正在不断完善，为保证大家的公共利益而努力，希望得到大家的理解。
+  - 容灾功能保证使用一直稳定（这里不要说太多帐号相关的东西； 只是说有这个功能会变得更好就行）
+  - 修复了很多大大小小的bug； 你自己找吧，我记不太清了
+- 全程不可以出现openai、anthropic等国外大模型的任何字眼。
+- 不要用sub2api这个字眼，而是用BenszAPI
+- 技术原理不要介绍太多； 主要是从产品经理向用户介绍产品的口径来出发。要有高级感但又不脱离实际。写作风格类似于 /Volumes/2T01/winE/我的坚果云/样式备份/网站/blognas.hwb0307.com/blog/new02/AGENTS.md ， 这样就更像是我写的文章
+- 文末不要附带项目github地址，因为这是私人项目。成文后直接发布，不用经过我审核。
 
 ---
 
@@ -205,6 +231,21 @@ https://github.com/huangwb8/ChineseResearchLaTeX 的v4.0.0和v3之间有非常�
   - 文末要附带项目github地址
 
 # skills
+
+---
+
+介绍 https://github.com/huangwb8/skills 的自上次发表的相关文章以来最近几次commit/release的情况，写个文章介绍下。  发到 bensz channel 的 vibe 频道上。 要求：
+
+- 第1段落小结既往 bensz channel 上和 huangwb8/skills 有关的文章一起讨论，这样比较有连贯性。
+- 第2段开始，重点介绍最近的一些更新。 要求
+  - 重点突出
+  - 较为详尽，让读者能切实地感受到项目的变化
+  - 写作风格类似于 /Volumes/2T01/winE/我的坚果云/样式备份/网站/blognas.hwb0307.com/blog/new02/AGENTS.md ， 这样就更像是我写的文章
+  - 文末要附带项目github地址
+
+---
+
+/Volumes/2T01/Github/skills 里新添加了一个画图用的skill。 请你结合 /Volumes/2T01/Github/sub2api 里如何设置画图分组的API，然后如何使用这个skill在codex里使用 gpt-image-2 画图，写一个step-by-step教程。 sub2api不要出现字样，统称为BenszAPI。 发布到bensz channel的 vibe 频道上。 
 
 ---
 
