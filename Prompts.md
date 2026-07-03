@@ -34,7 +34,33 @@
 - 写作风格类似于 /Volumes/2T01/winE/我的坚果云/样式备份/网站/blognas.hwb0307.com/blog/new02/AGENTS.md ， 这样就更像是我写的文章
 - 文末要附带项目github地址
 
+# bensz-notes
+
+介绍 /Volumes/2T01/Github/bensz-notes 这个新项目，写个文章介绍下。 发到 bensz channel 的 开发 频道上。 要求：
+
+- 介绍我为什么开发 bensz-notes
+  - joplin用不惯
+  - 希望有个ai-native的笔记应用
+- 介绍软件的基本情况
+- 技术原理不要介绍太多； 主要是从产品经理向用户介绍产品的口径来出发。要有高级感但又不脱离实际。写作风格类似于 /Volumes/2T01/winE/我的坚果云/样式备份/网站/blognas.hwb0307.com/blog/new02/AGENTS.md ， 这样就更像是我写的文章
+- 文末不要附带项目github地址，因为这是私人项目。成文后直接发布，不用经过我审核。
+
 # BenszAPI
+
+---
+
+介绍 /Volumes/2T01/Github/sub2api 自上次发表BenszAPI 频道的相关文章以来的commit/release的情况，写个文章介绍下。 发到 bensz channel 的 BenszAPI 频道上。 要求：
+
+- 开头第1段，结合既往 bensz channel 上和 sub2api 有关的文章（有一些是草稿状态，因此不需要给出超链接，反正用户也看不到）一起讨论，这样比较有连贯性
+- 第2段开始，介绍那些用户可能感兴趣的新功能、新特性，或者一些重点被优化的点。要求重点突出、较为详尽，让读者能切实地感受到项目的变化。特别是：
+  - 智能路由/插件功能的持续优化
+  - 画图/聊天应用的持续优化
+  - 安全审查功能的持续优化
+  - 其它你觉得值得一提的功能
+- 全程不可以出现openai、anthropic等国外大模型的任何字眼。
+- 不要用sub2api这个字眼，而是用BenszAPI
+- 技术原理不要介绍太多； 主要是从产品经理向用户介绍产品的口径来出发。要有高级感但又不脱离实际。写作风格类似于 /Volumes/2T01/winE/我的坚果云/样式备份/网站/blognas.hwb0307.com/blog/new02/AGENTS.md ， 这样就更像是我写的文章
+- 文末不要附带项目github地址，因为这是私人项目。成文后直接发布，不用经过我审核。
 
 ---
 
@@ -281,6 +307,10 @@ https://github.com/huangwb8/ChineseResearchLaTeX 的v4.0.0和v3之间有非常�
 ---
 
 介绍/Volumes/2T01/Github/skills 的最新release的情况，发到 vibe 频道里。写法上，要和上一次相关的发布有所继承。
+
+# bensz-notes
+
+请开发 skills/bensz-notes-vibe-config。 它负责与 /Volumes/2T01/Github/bensz-notes DevTools界面里的API进行各种交互，从而实现笔记等各种管理； 为了更好地开发，你需要对bensz-notes 的源代码有深入理解 。  ./remote.env 部分内容是一个真实可用的 bensz-notes 站点的鉴权信息，在 `# bensz note` 下面，你可以用于测试； 但不能干扰目前站点里已有的状态。开发skill要严格按 /Volumes/2T01/winE/PythonCloud/Agents/pipelines/skills 的开发规范。 skill的demo做完后，使用 Auto Test Skill skill 进行1轮优化，然后 Compact Bensz Skills  skill 进行压缩。最后，使用 [$install-bensz-skills](/Volumes/2T01/Cache/.codex/skills/install-bensz-skills/SKILL.md) 安装到本设备。
 
 # dudu
 
