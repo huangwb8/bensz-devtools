@@ -4,6 +4,14 @@
 
 ## 当前收录
 
+### `bensz-notes-vibe-config`
+
+- 来源仓库：`/Volumes/2T01/Github/bensz-notes`
+- 目标系统：`bensz-notes`
+- 受限接口：DevTools Agent API Token，默认 `{BENSZ_NOTES_URL}/api/backend/*`
+- 主要对象：笔记、目录、标签、本地同步、设置、成员、Agent token、审计与平台治理只读入口
+- 安全边界：发布必须 `--allow-publish`，删除/撤销必须 `--confirm-delete`，真实站点测试优先只读
+
 ### `bensz-channel-vibe-config`
 
 - 来源仓库：`/Volumes/2T01/winE/Starup/bensz-channel`

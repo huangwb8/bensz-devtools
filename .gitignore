@@ -62,6 +62,8 @@ __pycache__/
 
 # AI / local execution artifacts
 .parallel_vibe/
+.bensz-api/
+skills/*/.bensz-api/
 skills/*/.compact-bensz-skills/
 
 # Skill 运行时产物（计划与测试报告默认不纳入版本控制）
@@ -74,6 +76,13 @@ skills/dudu-vibe-config/plans/*
 !skills/dudu-vibe-config/tests/
 skills/dudu-vibe-config/tests/*
 !skills/dudu-vibe-config/tests/test_client_defaults.py
+!skills/bensz-notes-vibe-config/tests/
+skills/bensz-notes-vibe-config/tests/*
+!skills/bensz-notes-vibe-config/tests/__init__.py
+!skills/bensz-notes-vibe-config/tests/unit/
+skills/bensz-notes-vibe-config/tests/unit/*
+!skills/bensz-notes-vibe-config/tests/unit/__init__.py
+!skills/bensz-notes-vibe-config/tests/unit/test_client_cli.py
 
 
 # 示例：

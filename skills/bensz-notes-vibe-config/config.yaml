@@ -1,0 +1,42 @@
+# bensz-notes-vibe-config - Single Source of Truth
+# 脚本仅依赖 Python 标准库；YAML 解析器只支持扁平 key/list。
+
+skill_name: bensz-notes-vibe-config
+skill_version: 0.1.0
+skill_description: "bensz-notes 远程管理桥梁：通过 DevTools Agent API Token 管理笔记、目录、标签、同步、设置、成员、token、审计和平台治理只读入口。"
+skill_author: "Bensz Conan"
+
+default_url: "http://localhost:3000"
+default_api_prefix: "/api/backend"
+request_timeout_seconds: 15
+idempotency_enabled: true
+idempotency_retry_count: 2
+idempotency_prefix: "bn-vibe-config-v1"
+
+env_url_keys:
+  - BENSZ_NOTES_URL
+  - bensz_notes_url
+  - bn_url
+
+env_key_keys:
+  - BENSZ_NOTES_KEY
+  - bensz_notes_key
+  - bn_key
+  - BENSZ_NOTES_TOKEN
+  - bensz_notes_token
+
+env_api_prefix_keys:
+  - BENSZ_NOTES_API_PREFIX
+  - bensz_notes_api_prefix
+  - bn_api_prefix
+
+env_file_candidates:
+  - .env
+  - .env.local
+  - remote.env
+
+env_search_max_depth: 5
+
+fallback_env_files:
+  - "~/.bensz-notes.env"
+  - "~/.config/bensz-notes/devtools.env"
