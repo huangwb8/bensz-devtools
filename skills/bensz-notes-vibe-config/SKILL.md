@@ -1,7 +1,6 @@
 ---
 name: bensz-notes-vibe-config
-category: normal
-description: "bensz-notes DevTools 远程管理桥梁：当用户要求通过 bensz-notes 的 DevTools/API Token 管理笔记、目录、标签、同步、设置、成员、token、审计或平台治理入口时使用。"
+description: "bensz-notes DevTools 远程管理桥梁：当用户要求通过 bensz-notes 的 DevTools/API Token 管理笔记、目录、标签，或把本地 Markdown 笔记上传、更新、镜像同步到云端（包括目录/文件改名或移动）时使用；也覆盖设置、成员、token、审计和平台治理入口。"
 metadata:
   author: Bensz Conan
   short-description: bensz-notes DevTools Agent API 桥梁
@@ -33,6 +32,7 @@ metadata:
 - `status=published` 必须显式 `--allow-publish`。
 - 删除笔记、同步路径、成员、token 必须显式 `--confirm-delete`。
 - 笔记更新/移动和同步删除必须尊重 `baseRevision` / `baseContentHash`；无字段更新、无目标移动、缺少同步删除基线都必须拒绝。
+- 工作区上传以本地 Markdown 为权威源。默认只创建/更新本地存在的文件；要让云端严格镜像本地，必须同时传 `--delete-missing --confirm-delete`，将远端缺失路径移入回收站。
 - 遇到 `409 REVISION_CONFLICT` / `SYNC_CONFLICT`：重新读取 note 或 manifest，比较 revision/hash 后再决定。
 
 ## 环境变量
@@ -65,13 +65,39 @@ python3 scripts/client.py --dry-run notes update --id <note-id> --base-revision 
 python3 scripts/client.py notes update --id <note-id> --base-revision 3 --title "新标题"
 ```
 
+## 本地优先工作区上传（首选）
+
+当用户说“把本地笔记上传到云端”“更新云端笔记”“让云端与本地对齐”或提到本地目录/文件改名时，优先使用 `scripts/sync_workspace.py`，不要逐文件手工调用 `sync upsert`。它只依赖 Python 标准库，会先读取一次 manifest、跳过内容未变的文件、自动创建目录链，并将成功基线保存到本地工作区的 `.bensz-notes/sync-state.json`（不可提交凭证）。
+
+先预览，再执行本地到云端的增量上传：
+
+```bash
+python3 scripts/sync_workspace.py /absolute/path/to/notes --env /path/to/remote.env --dry-run
+python3 scripts/sync_workspace.py /absolute/path/to/notes --env /path/to/remote.env
+```
+
+需要“云端绝对等于本地”时，显式确认软删除云端多出的路径：
+
+```bash
+python3 scripts/sync_workspace.py /absolute/path/to/notes --env /path/to/remote.env --dry-run --delete-missing --confirm-delete
+python3 scripts/sync_workspace.py /absolute/path/to/notes --env /path/to/remote.env --delete-missing --confirm-delete
+```
+
+目录或文件改名后，内容未变的文件会在计划中标为 `rename`，执行时先上传新路径、再软删除旧路径；这适用于整目录重命名。若同一次既改名又改正文，协议无法可靠识别其为同一笔记，仍可用镜像模式完成“新建路径 + 删除旧路径”。所有更新都携带刚读取的远端 revision/hash；若执行期间云端再次变化，脚本停止并报告 `SYNC_CONFLICT`，不得静默覆盖竞态写入。
+
+## Markdown 表格约定
+
+创建或更新含表格的笔记时，优先写标准 GFM Markdown 表格；`bensz-notes` 会在安全渲染时为表格自动添加 `AI-Based-TB` 类并应用默认表格风格。只有迁移旧 blognas 文章或用户明确要求保留原 HTML 时，才保留 `<table class="AI-Based-TB">` 形式；不要为表格写内联样式或脚本。
+
 ## 常见任务
 
 - 身份：`python3 scripts/client.py me`
 - 笔记：`notes list/show/create/update/append/move/delete/trash-restore/versions/version/restore-version`
 - 发布：`python3 scripts/client.py notes update --id <id> --base-revision <n> --status published --allow-publish`
 - 目录/标签：`python3 scripts/client.py folders list`、`python3 scripts/client.py tags list`
-- 同步：`python3 scripts/client.py sync manifest`
+- 工作区上传：`python3 scripts/sync_workspace.py <本地目录> --env <remote.env> [--dry-run]`
+- 严格镜像：追加 `--delete-missing --confirm-delete`
+- 单文件同步 API：`python3 scripts/client.py sync manifest`、`sync upsert`、`sync delete`
 - 同步写入：`python3 scripts/client.py sync upsert --path folder/note.md --markdown '# Note' --create-folders`
 - 同步删除：`python3 scripts/client.py sync delete --path folder/note.md --base-revision 3 --base-content-hash sha256:... --confirm-delete`
 - 设置/成员/token/审计：`settings get`、`members list`、`tokens list`、`audit --limit 20`

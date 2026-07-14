@@ -83,6 +83,7 @@ skills/bensz-notes-vibe-config/tests/*
 skills/bensz-notes-vibe-config/tests/unit/*
 !skills/bensz-notes-vibe-config/tests/unit/__init__.py
 !skills/bensz-notes-vibe-config/tests/unit/test_client_cli.py
+!skills/bensz-notes-vibe-config/tests/unit/test_sync_workspace.py
 
 
 # 示例：

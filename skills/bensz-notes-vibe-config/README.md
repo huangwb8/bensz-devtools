@@ -27,6 +27,27 @@ python3 scripts/client.py --env ../../remote.env doctor
 python3 scripts/client.py --env ../../remote.env notes list --limit 5
 ```
 
+## 本地笔记上传与镜像同步
+
+本 skill 的工作区同步采用“本地优先”语义：本地 Markdown 是要上传的最新版本。它会读取一次云端 manifest，仅上传新增或内容变化的文件，并把成功基线写到本地工作区的 `.bensz-notes/sync-state.json`；该状态文件不包含 token。
+
+先预览实际动作，再上传：
+
+```bash
+cd skills/bensz-notes-vibe-config
+python3 scripts/sync_workspace.py /absolute/path/to/local-notes --env ../../remote.env --dry-run
+python3 scripts/sync_workspace.py /absolute/path/to/local-notes --env ../../remote.env
+```
+
+普通上传不会删除云端独有的笔记。若目标是让云端严格镜像本地，请先确认预览中的删除项，再显式执行：
+
+```bash
+python3 scripts/sync_workspace.py /absolute/path/to/local-notes --env ../../remote.env --dry-run --delete-missing --confirm-delete
+python3 scripts/sync_workspace.py /absolute/path/to/local-notes --env ../../remote.env --delete-missing --confirm-delete
+```
+
+目录或文件名改变时，未改正文的项目会自动识别为 `rename`：先在新路径创建/更新，再将旧路径软删除。一次同时改名和改正文时无法从路径协议中安全判定同一身份，镜像模式会按“新路径 + 删除旧路径”处理。执行窗口内发生远端并发修改会返回 `SYNC_CONFLICT` 并停止，重新预览后再处理。
+
 ## 常用命令
 
 ```bash
@@ -49,6 +70,10 @@ python3 scripts/client.py sync manifest
 python3 scripts/client.py sync upsert --path folder/note.md --markdown "# Note" --create-folders
 python3 scripts/client.py sync delete --path folder/note.md --base-revision 3 --base-content-hash sha256:... --confirm-delete
 
+# 工作区级本地优先上传（推荐）
+python3 scripts/sync_workspace.py /absolute/path/to/local-notes --env ../../remote.env --dry-run
+python3 scripts/sync_workspace.py /absolute/path/to/local-notes --env ../../remote.env
+
 # 目录、标签、设置、成员、审计
 python3 scripts/client.py folders list
 python3 scripts/client.py tags list
@@ -65,6 +90,10 @@ python3 scripts/client.py notes delete --id <note-id> --confirm-delete
 python3 scripts/client.py tokens revoke --id <token-id> --confirm-delete
 ```
 
+## Markdown 表格
+
+新增或更新笔记时，优先使用标准 GFM Markdown 表格。`bensz-notes` 公开渲染会自动为表格应用 `AI-Based-TB` 默认样式；只有迁移旧 blognas HTML 表格时才需要保留 `<table class="AI-Based-TB">`。
+
 ## 安全规则
 
 - 不输出完整 token。
@@ -73,6 +102,7 @@ python3 scripts/client.py tokens revoke --id <token-id> --confirm-delete
 - 写操作先 `--dry-run`，再执行真实请求。
 - 遇到 `409` 冲突时重新读取远端 revision/hash，不盲写覆盖。
 - `sync upsert` 未传 `--status` 时不覆盖既有状态；`sync delete` 必须带 manifest 中的 revision/hash 基线。
+- 工作区同步只有在同时提供 `--delete-missing --confirm-delete` 时才会删除云端多余路径；删除是可恢复的软删除。
 
 ## 测试
 
