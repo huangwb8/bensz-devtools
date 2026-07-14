@@ -36,6 +36,18 @@
 
 # bensz-notes
 
+---
+
+/Volumes/2T01/Github/bensz-notes 的源代码与 /Volumes/2T01/winE/Starup/bensz-devtools/skills/bensz-notes-vibe-config 对应。 目前，该skill不能做这件事：
+
+- 云端不能和本地的笔记绝对对齐。 一般来说，本地的笔记是ai改动的，一般是最新版，所以用户基本上都是要从本地上传到云
+- 应该有固定的稳定的快速的上传笔记/更新笔记的脚本
+- 有时候本地的笔记的目录名字变了或者改了目录，这时候应该可以适应并将这种状态更新到云端
+
+请优化skill。
+
+---
+
 介绍 /Volumes/2T01/Github/bensz-notes 这个新项目，写个文章介绍下。 发到 bensz channel 的 开发 频道上。 要求：
 
 - 介绍我为什么开发 bensz-notes
@@ -46,6 +58,16 @@
 - 文末不要附带项目github地址，因为这是私人项目。成文后直接发布，不用经过我审核。
 
 # BenszAPI
+
+---
+
+根据 docs/events/sub2api-overage-mode-beginner-guide.md ， 写个文章介绍下超额这一新的方式。 发到 bensz channel 的 BenszAPI 频道上。 要求：
+
+- 全程不可以出现openai、anthropic等国外大模型的任何字眼。
+- 不要用sub2api这个字眼，而是用BenszAPI
+- 技术原理不要介绍太多； 主要是从产品经理向用户介绍产品的口径来出发。要有高级感但又不脱离实际。写作风格类似于 /Volumes/2T01/winE/我的坚果云/样式备份/网站/blognas.hwb0307.com/blog/new02/AGENTS.md ， 这样就更像是我写的文章
+- 文末不要附带项目github地址，因为这是私人项目。
+- 成文后直接发布，不用经过我审核。
 
 ---
 
@@ -123,6 +145,10 @@
 - 文末要附带项目github地址
 
 # Bensz-channel
+
+---
+
+结合 /Volumes/2T01/winE/PythonCloud/Agents/pipelines/deep_research/docs/codex-vscode-gpt-5.6-menu-patch-report.md 的内容，你写一个文章，发表在 bensz channel 的观点频道，不用经过我再次审核。主要内容是教大家怎么解锁Codex VSCode插件并使用 GPT-5.6 系列的模型。 
 
 ---
 
