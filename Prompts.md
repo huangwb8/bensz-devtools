@@ -38,6 +38,14 @@
 
 ---
 
+介绍 /Volumes/2T01/Github/bensz-notes 这个项目的进展（看 /Volumes/2T01/Github/bensz-notes 的commit信息就知道），写个文章介绍下。 发到 bensz channel 的 开发 频道上。 要求：
+
+- 和上次介绍相比，有哪些巨大的进步。
+- 技术原理不要介绍太多； 主要是从产品经理向用户介绍产品的口径来出发。要有高级感但又不脱离实际。写作风格类似于 /Volumes/2T01/winE/我的坚果云/样式备份/网站/blognas.hwb0307.com/blog/new02/AGENTS.md ， 这样就更像是我写的文章
+- 文末不要附带项目github地址，因为这是私人项目。成文后直接发布，不用经过我审核。
+
+---
+
 /Volumes/2T01/Github/bensz-notes 的源代码与 /Volumes/2T01/winE/Starup/bensz-devtools/skills/bensz-notes-vibe-config 对应。 目前，该skill不能做这件事：
 
 - 云端不能和本地的笔记绝对对齐。 一般来说，本地的笔记是ai改动的，一般是最新版，所以用户基本上都是要从本地上传到云
@@ -58,6 +66,38 @@
 - 文末不要附带项目github地址，因为这是私人项目。成文后直接发布，不用经过我审核。
 
 # BenszAPI
+
+---
+
+介绍 /Volumes/2T01/Github/sub2api 自上次发表BenszAPI 频道的相关文章以来的commit/release的情况，写个文章介绍下。 发到 bensz channel 的 BenszAPI 频道上。 要求：
+
+- 开头第1段，结合既往 bensz channel 上和 sub2api 有关的文章（有一些是草稿状态，因此不需要给出超链接，反正用户也看不到）一起讨论，这样比较有连贯性
+- 第2段开始，介绍那些用户可能感兴趣的新功能、新特性，或者一些重点被优化的点。要求重点突出、较为详尽，让读者能切实地感受到项目的变化。特别是：
+  - CC Switch的支持
+  - 燃尽额度可视化的进一步优化
+  - V1.23版本一直运行稳定； 在gpt-5.6-sol extra high的辅助下，吸收上游安全功能的过程也很顺利，没有出现致命报错
+  - Auto-draw-plot的bug终于修复，竟然只是一个 v1 路径的报错，还是我通过失败新实例 vs. 成功旧实例才找到bug的证据； 这个例子也反映出ai单从静态代码检查很难找到一些隐匿的bug，测试还是不可替代的
+  - 其它你觉得值得一提的功能
+- 全程不可以出现openai、anthropic等国外大模型的任何字眼。
+- 不要用sub2api这个字眼，而是用BenszAPI
+- 技术原理不要介绍太多； 主要是从产品经理向用户介绍产品的口径来出发。要有高级感但又不脱离实际。写作风格类似于 /Volumes/2T01/winE/我的坚果云/样式备份/网站/blognas.hwb0307.com/blog/new02/AGENTS.md ， 这样就更像是我写的文章
+- 文末不要附带项目github地址，因为这是私人项目。成文后直接发布，不用经过我审核。
+
+---
+
+介绍 /Volumes/2T01/Github/sub2api 自上次发表BenszAPI 频道的相关文章以来的commit/release的情况，写个文章介绍下。 发到 bensz channel 的 BenszAPI 频道上。 要求：
+
+- 开头第1段，结合既往 bensz channel 上和 sub2api 有关的文章（有一些是草稿状态，因此不需要给出超链接，反正用户也看不到）一起讨论，这样比较有连贯性
+- 第2段，向用户道歉，新版本的推出有所延迟。 因为过于相信GPT-5.6以及采用与GPT-5.5时代类似的开发习惯，导致新版本BenszAPI的bug不断。 我做了一些调查，在 /Volumes/2T01/winE/PythonCloud/Agents/pipelines/deep_research/reports/GPT-5.6官方提示词设计原则与Superpowers对比 里； 我根据一些新的指导思路优化了智能路由里与软件开发相关的流程； 加之更加重视基于人类的归因性开发（制定开发计划依赖人类理解性、注重目标的简洁表达）而不是传统的superpowers式的关注代码修改细节，才让开发步入正轨。之前的429错误也进一步处理了（你可以看一下commit，几乎是从 v1.22.6到 v.1.23.5这多个版本的修复才在 GPT-5.6 Sol Extra-High 的根因定位[证明与浮点精度有关]才算很好地解决；这也是新版本上线受阻的主要原因）。 
+- 第3段开始，介绍那些用户可能感兴趣的新功能、新特性，或者一些重点被优化的点。要求重点突出、较为详尽，让读者能切实地感受到项目的变化。特别是：
+  - 目前最新是 v1.23.9，在燃尽额度、运行稳定性、基于 auto-draw-plot 的画图/修图功能都得到实质性的进展
+  - 燃尽额度在 v1.23.8 起正在灰度测试
+  - 有效地处理了 429 错误 （你可以看一下 /Volumes/2T01/Github/sub2api/docs/plans ，很多次修复）； 而且模式1/模式2的引入也有利于在保证业务稳定性的同时有资本去进一步评估理论上更优的Codex续链恢复方案
+  - 其它你觉得值得一提的功能
+- 全程不可以出现openai、anthropic等国外大模型的任何字眼。
+- 不要用sub2api这个字眼，而是用BenszAPI
+- 技术原理不要介绍太多； 主要是从产品经理向用户介绍产品的口径来出发。要有高级感但又不脱离实际。写作风格类似于 /Volumes/2T01/winE/我的坚果云/样式备份/网站/blognas.hwb0307.com/blog/new02/AGENTS.md ， 这样就更像是我写的文章
+- 文末不要附带项目github地址，因为这是私人项目。成文后直接发布，不用经过我审核。
 
 ---
 
@@ -288,6 +328,7 @@ https://github.com/huangwb8/ChineseResearchLaTeX 的v4.0.0和v3之间有非常�
 
 介绍 https://github.com/huangwb8/skills 的自上次发表的相关文章以来最近几次commit/release的情况，写个文章介绍下。  发到 bensz channel 的 vibe 频道上。 要求：
 
+- 开头写明： 用户进入 BenszAPI 里，对应的API开启智能路由模式。 然后，在Codex里输入`更新 bensz skills`即可更新
 - 第1段落小结既往 bensz channel 上和 huangwb8/skills 有关的文章一起讨论，这样比较有连贯性。
 - 第2段开始，重点介绍最近的一些更新。 要求
   - 重点突出
