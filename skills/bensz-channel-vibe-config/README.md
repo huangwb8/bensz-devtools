@@ -30,6 +30,12 @@ python3 skills/bensz-channel-vibe-config/scripts/client.py --env ./self/remote.e
 - 不要修改 `./self` 里的任何文件
 - 如果不在本仓库里，可改为自己的 `.env` 文件路径
 
+## Agent 中间工作区
+
+保存请求草稿、脱敏回显、临时 payload 或验证日志时，使用本轮唯一的 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/`：共享材料放 `shared/input|output|log`，本 skill 的材料放 `bensz-channel-vibe-config/input|output|log`。不要归档 API Key、`.env`、`remote.env`、Cookie 或完整私有数据；正式文章和用户指定交付物仍放项目约定或用户指定位置。
+
+同一逻辑任务从首次声明目录起始终复用该目录。
+
 **手动配置方式：**
 
 ```bash

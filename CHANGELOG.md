@@ -6,6 +6,8 @@
 
 ### Changed
 
+- 对齐全部 bridge skill 的中间文件约定：`SKILL.md`、README 与聚合索引统一使用本轮唯一的 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/shared|{skill名}/input|output|log`，并明确凭据、正式交付物和同一逻辑任务目录复用边界。
+- 调整 `bensz-notes-vibe-config` 的 `sync_workspace.py`：不再默认向用户笔记目录写入 `.bensz-notes/sync-state.json`；需要改名识别基线时，调用方必须显式用 `--state-file` 指向当前 `.bensz-api` 任务目录。
 - 更新 `README.md`、`skills/README.md` 与 `.gitignore`：登记 `bensz-notes-vibe-config` 的本地优先工作区上传/镜像同步能力，并将其新增回归测试纳入版本控制。
 - 调整 `.gitignore`：新增 `.bensz-api/` 与 `skills/*/.bensz-api/` 忽略规则，隔离 auto-test/compact 等本地执行产物
 - 基于 2026-04-19 对 `/Volumes/2T01/winE/Starup/dudu` 最新 `Vibe Agent` 源码再次审计，更新 `skills/dudu-vibe-config` 的契约口径：补充风格市场/可见性、最后一个订阅删除时的 orphan 清理闭环、Vibe 仍未开放 `searchMode`、以及 `rss_opml` 模板在当前 Vibe 路由下仍要求非空 `query` 等边界

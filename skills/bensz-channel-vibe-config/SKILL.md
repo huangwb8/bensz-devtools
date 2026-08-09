@@ -35,6 +35,13 @@ metadata:
 - 评论：列表 / 改可见性 / 删除
 - 用户：列表 / 修改资料和角色 / 删除普通用户
 
+## 任务工作区与中间文件
+
+- 调用本 skill 前，先向用户说明 `bensz-channel-vibe-config` 将完成的具体工作；只需文本答复时明确说明不创建目录。
+- 需要落盘时，只使用本轮唯一的 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/`。任务共享材料放 `shared/input|output|log`，请求草稿、脱敏回显、临时 payload 和验证日志放 `bensz-channel-vibe-config/input|output|log`。
+- 不归档 API Key、Cookie、`.env`/`remote.env` 或完整私有数据；正式文章、用户指定文件和项目文档仍保存到用户指定或项目约定位置。
+- 同一逻辑任务的后续调用必须复用首次声明的任务目录，不能因工具续写或步骤变化创建第二个目录。
+
 ## 安全边界（强制）
 
 - 只调用 `{BENSZ_CHANNEL_URL}/api/vibe/*`

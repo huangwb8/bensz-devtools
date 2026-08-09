@@ -6,6 +6,8 @@
 
 ### Changed
 
+- `sync_workspace.py` 不再默认在本地笔记工作区创建 `.bensz-notes/sync-state.json`；新增可选 `--state-file`，用于将同步基线保存到本轮 `.bensz-api/task-…/bensz-notes-vibe-config/output/`，避免中间状态污染用户笔记目录。
+- 同步 README 与 `SKILL.md` 的任务工作区说明，并补充显式状态路径的回归测试。
 - 补充 Markdown 表格写作约定：优先使用 GFM 表格，由 bensz-notes 渲染层自动应用 `AI-Based-TB` 默认风格。
 - 移除 `SKILL.md` frontmatter 中的非标准 `category` 字段，兼容 Codex skill 校验器。
 - 将本地 Markdown 工作区上传设为本地优先的标准同步路径，并在 SKILL/README 中明确其触发场景与镜像删除确认流程。

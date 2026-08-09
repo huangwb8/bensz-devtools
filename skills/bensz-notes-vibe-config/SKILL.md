@@ -22,6 +22,13 @@ metadata:
 
 覆盖：认证诊断、笔记 CRUD/版本/回收站、目录、标签、本地同步、设置、workspace 成员、Agent token、审计，以及 super_admin 平台治理只读入口。`raw` 仅作为受限补充：只访问配置的 API base；非 GET 必须 `--confirm-write`。
 
+## 任务工作区与中间文件
+
+- 调用本 skill 前，先向用户说明 `bensz-notes-vibe-config` 将完成的具体工作；不需要落盘时明确说明不创建目录。
+- 需要保存输入引用、预览结果、临时 Markdown、脚本输出或验证日志时，只使用本轮唯一的 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/`。任务共享材料放 `shared/input|output|log`，本 skill 的材料放 `bensz-notes-vibe-config/input|output|log`。
+- `remote.env`、Token 和原始敏感笔记不得复制进任务目录。正式笔记、用户指定导出文件和项目文档仍保存到用户指定或项目约定位置，而不是 `.bensz-api`。
+- 连续调用、恢复会话或追加步骤必须复用首次声明的任务目录；不得为同一逻辑任务新建第二个目录。
+
 ## 强制安全规则
 
 - 只调用 `{BENSZ_NOTES_URL}{BENSZ_NOTES_API_PREFIX}/*`；默认值见 `config.yaml`。
@@ -67,20 +74,22 @@ python3 scripts/client.py notes update --id <note-id> --base-revision 3 --title 
 
 ## 本地优先工作区上传（首选）
 
-当用户说“把本地笔记上传到云端”“更新云端笔记”“让云端与本地对齐”或提到本地目录/文件改名时，优先使用 `scripts/sync_workspace.py`，不要逐文件手工调用 `sync upsert`。它只依赖 Python 标准库，会先读取一次 manifest、跳过内容未变的文件、自动创建目录链，并将成功基线保存到本地工作区的 `.bensz-notes/sync-state.json`（不可提交凭证）。
+当用户说“把本地笔记上传到云端”“更新云端笔记”“让云端与本地对齐”或提到本地目录/文件改名时，优先使用 `scripts/sync_workspace.py`，不要逐文件手工调用 `sync upsert`。它只依赖 Python 标准库，会先读取一次 manifest、跳过内容未变的文件、自动创建目录链。需要保留成功基线以识别后续改名时，显式传入当前任务目录内的 `--state-file`；脚本不会再向用户笔记目录写入隐藏状态。
 
 先预览，再执行本地到云端的增量上传：
 
 ```bash
 python3 scripts/sync_workspace.py /absolute/path/to/notes --env /path/to/remote.env --dry-run
-python3 scripts/sync_workspace.py /absolute/path/to/notes --env /path/to/remote.env
+python3 scripts/sync_workspace.py /absolute/path/to/notes --env /path/to/remote.env \
+  --state-file ./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/bensz-notes-vibe-config/output/sync-state.json
 ```
 
 需要“云端绝对等于本地”时，显式确认软删除云端多出的路径：
 
 ```bash
 python3 scripts/sync_workspace.py /absolute/path/to/notes --env /path/to/remote.env --dry-run --delete-missing --confirm-delete
-python3 scripts/sync_workspace.py /absolute/path/to/notes --env /path/to/remote.env --delete-missing --confirm-delete
+python3 scripts/sync_workspace.py /absolute/path/to/notes --env /path/to/remote.env --delete-missing --confirm-delete \
+  --state-file ./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/bensz-notes-vibe-config/output/sync-state.json
 ```
 
 目录或文件改名后，内容未变的文件会在计划中标为 `rename`，执行时先上传新路径、再软删除旧路径；这适用于整目录重命名。若同一次既改名又改正文，协议无法可靠识别其为同一笔记，仍可用镜像模式完成“新建路径 + 删除旧路径”。所有更新都携带刚读取的远端 revision/hash；若执行期间云端再次变化，脚本停止并报告 `SYNC_CONFLICT`，不得静默覆盖竞态写入。
@@ -95,7 +104,7 @@ python3 scripts/sync_workspace.py /absolute/path/to/notes --env /path/to/remote.
 - 笔记：`notes list/show/create/update/append/move/delete/trash-restore/versions/version/restore-version`
 - 发布：`python3 scripts/client.py notes update --id <id> --base-revision <n> --status published --allow-publish`
 - 目录/标签：`python3 scripts/client.py folders list`、`python3 scripts/client.py tags list`
-- 工作区上传：`python3 scripts/sync_workspace.py <本地目录> --env <remote.env> [--dry-run]`
+- 工作区上传：`python3 scripts/sync_workspace.py <本地目录> --env <remote.env> [--dry-run] [--state-file <task-dir>/bensz-notes-vibe-config/output/sync-state.json]`
 - 严格镜像：追加 `--delete-missing --confirm-delete`
 - 单文件同步 API：`python3 scripts/client.py sync manifest`、`sync upsert`、`sync delete`
 - 同步写入：`python3 scripts/client.py sync upsert --path folder/note.md --markdown '# Note' --create-folders`

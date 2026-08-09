@@ -11,6 +11,12 @@
 - 主动刷新订阅的 `derivedQuery / derivedPlan`
 - 触发生成报道、删除报道（Reports），并可在生成时临时覆盖 AI 配置
 
+## Agent 中间工作区
+
+保存 derived 草案、临时 JSON payload、脱敏命令输出或验证日志时，使用本轮唯一的 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/`：共享材料放 `shared/input|output|log`，本 skill 的材料放 `dudu-vibe-config/input|output|log`。不要归档 Vibe Key、`.env`、`remote.env` 或完整私有订阅内容；正式报道和用户指定交付物仍放项目约定或用户指定位置。
+
+同一逻辑任务从首次声明目录起始终复用该目录。
+
 ## 当前能力边界
 
 - 最近一次基于上游源码的审计时间与变更说明，统一记录在 `CHANGELOG.md` 与 `plans/2026-04-19-vibe-contract-audit-and-hardening.md`；本节只保留当前仍然生效的能力与限制。

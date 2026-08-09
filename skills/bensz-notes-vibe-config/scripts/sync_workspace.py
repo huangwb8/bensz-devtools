@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Push a local Markdown workspace to bensz-notes with local-authoritative semantics.
 
-The remote API identifies notes by path.  This tool records the last successful
-manifest locally, uploads changed files in one pass, and can delete paths absent
-from the local workspace when explicitly confirmed.  A rename is implemented as
-an upsert at the new path followed by a soft-delete at the old path.
+The remote API identifies notes by path. This tool optionally records the last
+successful manifest in an explicit state file, uploads changed files in one
+pass, and can delete paths absent from the local workspace when explicitly
+confirmed. A rename is implemented as an upsert at the new path followed by a
+soft-delete at the old path.
 """
 from __future__ import annotations
 
@@ -25,8 +26,6 @@ from _http_json import HttpResult, request_json
 
 
 SKILL_ROOT = Path(__file__).resolve().parents[1]
-STATE_DIR = ".bensz-notes"
-STATE_FILE = "sync-state.json"
 DEFAULT_EXCLUDED_DIRS = {".git", ".bensz-notes", "node_modules", "__pycache__"}
 
 
@@ -61,24 +60,23 @@ def _hash(markdown: str) -> str:
     return "sha256:" + hashlib.sha256(markdown.encode("utf-8")).hexdigest()
 
 
-def _state_path(root: Path) -> Path:
-    return root / STATE_DIR / STATE_FILE
-
-
-def read_state(root: Path) -> dict[str, dict[str, Any]]:
+def read_state(state_path: Path | None) -> dict[str, dict[str, Any]]:
+    if state_path is None:
+        return {}
     try:
-        payload = json.loads(_state_path(root).read_text(encoding="utf-8"))
+        payload = json.loads(state_path.read_text(encoding="utf-8"))
         return payload if isinstance(payload, dict) else {}
     except (OSError, json.JSONDecodeError):
         return {}
 
 
-def write_state(root: Path, state: dict[str, dict[str, Any]]) -> None:
-    target = _state_path(root)
-    target.parent.mkdir(parents=True, exist_ok=True)
-    temporary = target.with_suffix(".tmp")
+def write_state(state_path: Path | None, state: dict[str, dict[str, Any]]) -> None:
+    if state_path is None:
+        return
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = state_path.with_suffix(".tmp")
     temporary.write_text(json.dumps(state, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    temporary.replace(target)
+    temporary.replace(state_path)
 
 
 def _matches(path: str, patterns: list[str]) -> bool:
@@ -202,6 +200,7 @@ def _state_entry(note: RemoteNote) -> dict[str, Any]:
 
 def run(args: argparse.Namespace) -> int:
     root = Path(args.workspace).expanduser().resolve()
+    state_path = Path(args.state_file).expanduser().resolve() if args.state_file else None
     if not root.is_dir():
         raise SystemExit(f"Workspace does not exist or is not a directory: {root}")
     if args.delete_missing and not args.confirm_delete:
@@ -213,9 +212,9 @@ def run(args: argparse.Namespace) -> int:
         raise SystemExit("Missing or invalid BENSZ_NOTES_KEY.")
     files = scan_workspace(root, args.include or ["**/*.md", "*.md"], args.exclude or [])
     remote = fetch_manifest(env)
-    state = read_state(root)
+    state = read_state(state_path)
     actions = plan_sync(files, remote, state, delete_missing=args.delete_missing)
-    print(json.dumps({"workspace": str(root), "dryRun": args.dry_run, "actions": actions}, ensure_ascii=False, indent=2))
+    print(json.dumps({"workspace": str(root), "stateFile": str(state_path) if state_path else None, "dryRun": args.dry_run, "actions": actions}, ensure_ascii=False, indent=2))
     if args.dry_run:
         return 0
     local_by_path = {file.path: file for file in files}
@@ -228,7 +227,7 @@ def run(args: argparse.Namespace) -> int:
         if kind == "delete":
             delete_remote(env, remote[path])
             state.pop(path, None)
-    write_state(root, state)
+    write_state(state_path, state)
     return 0
 
 
@@ -236,6 +235,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="将本地 Markdown 工作区本地优先地推送到 bensz-notes")
     parser.add_argument("workspace", help="本地 Markdown 工作区根目录")
     parser.add_argument("--env", help="remote.env 路径")
+    parser.add_argument(
+        "--state-file",
+        help="同步基线路径；Agent 应指向 .bensz-api/task-…/bensz-notes-vibe-config/output/sync-state.json。省略时不读写本地状态。",
+    )
     parser.add_argument("--dry-run", action="store_true", help="仅读 manifest 并输出计划，不写入远端或状态文件")
     parser.add_argument("--delete-missing", action="store_true", help="软删除云端存在但本地缺失的路径，以实现镜像")
     parser.add_argument("--confirm-delete", action="store_true", help="确认 --delete-missing 的软删除")

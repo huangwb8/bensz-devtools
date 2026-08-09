@@ -13,7 +13,7 @@ import sync_workspace as sync  # noqa: E402
 
 
 class WorkspaceSyncTests(unittest.TestCase):
-    def test_scan_excludes_internal_state_and_hashes_utf8(self) -> None:
+    def test_scan_excludes_legacy_internal_state_and_hashes_utf8(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / "note.md").write_text("# 测试", encoding="utf-8")
@@ -22,6 +22,19 @@ class WorkspaceSyncTests(unittest.TestCase):
             files = sync.scan_workspace(root, ["**/*.md", "*.md"], [])
         self.assertEqual([item.path for item in files], ["note.md"])
         self.assertTrue(files[0].content_hash.startswith("sha256:"))
+
+    def test_state_is_written_only_to_explicit_path(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state_path = root / ".bensz-api" / "task-test" / "bensz-notes-vibe-config" / "output" / "sync-state.json"
+            state = {"note.md": {"id": "n1", "revision": 1, "contentHash": "sha256:test"}}
+            sync.write_state(state_path, state)
+            self.assertEqual(sync.read_state(state_path), state)
+            self.assertFalse((root / ".bensz-notes").exists())
+
+    def test_omitted_state_path_is_a_noop(self) -> None:
+        self.assertEqual(sync.read_state(None), {})
+        sync.write_state(None, {"note.md": {"id": "n1"}})
 
     def test_unchanged_directory_rename_is_detected(self) -> None:
         file = sync.LocalFile("new/name.md", "# Same", sync._hash("# Same"))

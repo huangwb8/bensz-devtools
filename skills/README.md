@@ -33,3 +33,9 @@
 - 保留各自的 `SKILL.md`、`README.md`、`config.yaml`、`scripts/`
 - 推荐保留 `docs/`、`plans/`、`tests/` 等演进沉淀，并纳入版本控制
 - 不收录缓存文件、编译产物和临时密钥文件
+
+## Agent 中间文件约定
+
+各 skill 在 AI 协作中需要保存输入引用、中间结果、临时输出或日志时，以本轮唯一的 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/` 为入口。任务级材料放 `shared/input|output|log`，具体 skill 的材料放 `{skill名}/input|output|log`。不得归档 Key、Token、Cookie、`.env`/`remote.env` 或不必要的原始私有数据。
+
+正式交付物、用户明确指定的文件、项目文档和源码变更不放入 `.bensz-api`；同一逻辑任务的后续步骤必须复用首次声明的任务目录。

@@ -36,6 +36,13 @@ metadata:
 - 报道：生成 / 删除
 - 域名规则：读取 / 更新
 
+## 任务工作区与中间文件
+
+- 调用本 skill 前，先向用户说明 `dudu-vibe-config` 将完成的具体工作；仅文本答复时明确说明不创建目录。
+- 需要落盘时，只使用本轮唯一的 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/`。任务共享材料放 `shared/input|output|log`，derived 草案、临时 JSON payload、脱敏命令输出和验证日志放 `dudu-vibe-config/input|output|log`。
+- 不归档 Vibe Key、`.env`/`remote.env`、完整私有订阅内容或其它敏感数据；正式报道、用户指定文件和项目文档仍保存到用户指定或项目约定位置。
+- 同一逻辑任务的后续调用必须复用首次声明的任务目录，不能因工具续写或步骤变化创建第二个目录。
+
 ## 当前能力边界
 
 - 最近一次基于上游源码的审计时间与变更说明，统一记录在 `CHANGELOG.md` 与 `plans/2026-04-19-vibe-contract-audit-and-hardening.md`；本节只保留当前仍然生效的能力与限制。

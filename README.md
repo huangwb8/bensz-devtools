@@ -79,3 +79,5 @@ bensz-devtools/
 - `AGENTS.md` 是仓库级单一事实来源
 - `CLAUDE.md` 通过 `@./AGENTS.md` 自动复用相同约束
 - 任何结构性调整、skill 迁移或规则更新，都要同步记录到 `CHANGELOG.md`
+- 中间输入、临时输出与日志统一归档到本轮唯一的 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/`；按 `shared|{skill名}/input|output|log` 分层，不归档凭据或不必要的私有原始数据
+- 正式交付物、项目文档与源码变更遵循项目目录约定，不默认放入 `.bensz-api`

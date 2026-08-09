@@ -27,23 +27,31 @@ python3 scripts/client.py --env ../../remote.env doctor
 python3 scripts/client.py --env ../../remote.env notes list --limit 5
 ```
 
+## Agent 中间工作区
+
+需要保存预览、临时 Markdown、命令输出或验证日志时，使用本轮唯一的 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/`：共享材料放 `shared/input|output|log`，本 skill 材料放 `bensz-notes-vibe-config/input|output|log`。不要把 Token、`remote.env` 或不必要的原始笔记复制进去；正式笔记和用户指定交付物仍放项目约定或用户指定位置。
+
+首次声明任务目录后，后续步骤必须复用它，不得为同一逻辑任务另建目录。
+
 ## 本地笔记上传与镜像同步
 
-本 skill 的工作区同步采用“本地优先”语义：本地 Markdown 是要上传的最新版本。它会读取一次云端 manifest，仅上传新增或内容变化的文件，并把成功基线写到本地工作区的 `.bensz-notes/sync-state.json`；该状态文件不包含 token。
+本 skill 的工作区同步采用“本地优先”语义：本地 Markdown 是要上传的最新版本。它会读取一次云端 manifest，仅上传新增或内容变化的文件。若要保存成功基线并识别后续的改名，请显式把 `--state-file` 放入当前 `.bensz-api` 任务目录；脚本默认不再向本地笔记工作区写入隐藏状态。
 
 先预览实际动作，再上传：
 
 ```bash
 cd skills/bensz-notes-vibe-config
 python3 scripts/sync_workspace.py /absolute/path/to/local-notes --env ../../remote.env --dry-run
-python3 scripts/sync_workspace.py /absolute/path/to/local-notes --env ../../remote.env
+python3 scripts/sync_workspace.py /absolute/path/to/local-notes --env ../../remote.env \
+  --state-file ../../.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/bensz-notes-vibe-config/output/sync-state.json
 ```
 
 普通上传不会删除云端独有的笔记。若目标是让云端严格镜像本地，请先确认预览中的删除项，再显式执行：
 
 ```bash
 python3 scripts/sync_workspace.py /absolute/path/to/local-notes --env ../../remote.env --dry-run --delete-missing --confirm-delete
-python3 scripts/sync_workspace.py /absolute/path/to/local-notes --env ../../remote.env --delete-missing --confirm-delete
+python3 scripts/sync_workspace.py /absolute/path/to/local-notes --env ../../remote.env --delete-missing --confirm-delete \
+  --state-file ../../.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/bensz-notes-vibe-config/output/sync-state.json
 ```
 
 目录或文件名改变时，未改正文的项目会自动识别为 `rename`：先在新路径创建/更新，再将旧路径软删除。一次同时改名和改正文时无法从路径协议中安全判定同一身份，镜像模式会按“新路径 + 删除旧路径”处理。执行窗口内发生远端并发修改会返回 `SYNC_CONFLICT` 并停止，重新预览后再处理。
@@ -72,7 +80,8 @@ python3 scripts/client.py sync delete --path folder/note.md --base-revision 3 --
 
 # 工作区级本地优先上传（推荐）
 python3 scripts/sync_workspace.py /absolute/path/to/local-notes --env ../../remote.env --dry-run
-python3 scripts/sync_workspace.py /absolute/path/to/local-notes --env ../../remote.env
+python3 scripts/sync_workspace.py /absolute/path/to/local-notes --env ../../remote.env \
+  --state-file ../../.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/bensz-notes-vibe-config/output/sync-state.json
 
 # 目录、标签、设置、成员、审计
 python3 scripts/client.py folders list

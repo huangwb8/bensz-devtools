@@ -2,7 +2,7 @@
 # 脚本仅依赖 Python 标准库；YAML 解析器只支持扁平 key/list。
 
 skill_name: bensz-notes-vibe-config
-skill_version: 0.2.0
+skill_version: 0.3.0
 skill_description: "bensz-notes 远程管理桥梁：通过 DevTools Agent API Token 管理笔记、目录、标签、本地优先的 Markdown 工作区上传与镜像同步、设置、成员、token、审计和平台治理只读入口。"
 skill_author: "Bensz Conan"
 
