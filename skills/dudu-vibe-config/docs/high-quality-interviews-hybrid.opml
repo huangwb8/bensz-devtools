@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<opml version="2.0">
+  <head>
+    <title>高质量访谈节目与观点视频：稳定 RSS 源</title>
+  </head>
+  <body>
+    <outline text="英文：思想、商业与科技">
+      <outline type="rss" text="Dwarkesh Podcast" xmlUrl="https://apple.dwarkesh-podcast.workers.dev/feed.rss" htmlUrl="https://www.dwarkeshpatel.com/podcast" />
+      <outline type="rss" text="Conversations with Tyler" xmlUrl="https://rss.libsyn.com/shows/137081/destinations/850607.xml" htmlUrl="https://conversationswithtyler.com/" />
+      <outline type="rss" text="EconTalk" xmlUrl="https://feeds.simplecast.com/wgl4xEgL" htmlUrl="https://www.econtalk.org/" />
+      <outline type="rss" text="Sean Carroll's Mindscape" xmlUrl="https://rss.libsyn.com/shows/604590/destinations/5264190.xml" htmlUrl="https://preposterousuniverse.com/podcast/" />
+      <outline type="rss" text="In Our Time" xmlUrl="https://podcasts.files.bbci.co.uk/b006qykl.rss" htmlUrl="https://www.bbc.co.uk/programmes/b006qykl" />
+      <outline type="rss" text="Acquired" xmlUrl="https://feeds.transistor.fm/acquired" htmlUrl="https://www.acquired.fm/" />
+      <outline type="rss" text="Founders" xmlUrl="https://feeds.megaphone.fm/DSLLC6297708582" htmlUrl="https://www.founderspodcast.com/" />
+      <outline type="rss" text="The Ezra Klein Show" xmlUrl="https://feeds.simplecast.com/kEKXbjuJ" htmlUrl="https://www.nytimes.com/column/ezra-klein-podcast" />
+      <outline type="rss" text="Hard Fork" xmlUrl="https://feeds.simplecast.com/6HKOhNgS" htmlUrl="https://www.nytimes.com/column/hard-fork" />
+      <outline type="rss" text="Decoder with Nilay Patel" xmlUrl="https://feeds.megaphone.fm/recodedecode" htmlUrl="https://www.theverge.com/decoder-podcast-with-nilay-patel" />
+      <outline type="rss" text="Odd Lots" xmlUrl="https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/8a94442e-5a74-4fa2-8b8d-ae27003a8d6b/982f5071-765c-403d-969d-ae27003a8d83/podcast.rss" htmlUrl="https://www.bloomberg.com/oddlots" />
+      <outline type="rss" text="All-In Podcast" xmlUrl="https://rss.libsyn.com/shows/254861/destinations/1928300.xml" htmlUrl="https://www.allinpodcast.co/" />
+      <outline type="rss" text="Lex Fridman Podcast" xmlUrl="https://lexfridman.com/feed/podcast/" htmlUrl="https://lexfridman.com/podcast/" />
+      <outline type="rss" text="The Diary Of A CEO" xmlUrl="https://rss2.flightcast.com/xmsftuzjjykcmqwolaqn6mdn" htmlUrl="https://thediaryofaceo.com/" />
+      <outline type="rss" text="Modern Wisdom" xmlUrl="https://feeds.megaphone.fm/SIXMSB5088139739" htmlUrl="https://chriswillx.com/modernwisdom/" />
+    </outline>
+    <outline text="中文：商业与科技">
+      <outline type="rss" text="半拿铁｜商业沉浮录" xmlUrl="https://proxy.wavpub.com/caffebreve.xml" htmlUrl="https://podcasts.apple.com/cn/podcast/%E5%8D%8A%E6%8B%BF%E9%93%81-%E5%95%86%E4%B8%9A%E6%B2%89%E6%B5%AE%E5%BD%95/id1615939013" />
+      <outline type="rss" text="硅谷101" xmlUrl="https://feeds.fireside.fm/sv101/rss" htmlUrl="https://sv101.fireside.fm/" />
+      <outline type="rss" text="知行小酒馆" xmlUrl="https://feed.xyzfm.space/j8yp8gxkmgqr" htmlUrl="https://podcasts.apple.com/cn/podcast/%E7%9F%A5%E8%A1%8C%E5%B0%8F%E9%85%92%E9%A6%86/id1559695855" />
+    </outline>
+  </body>
+</opml>

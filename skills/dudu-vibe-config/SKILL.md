@@ -48,13 +48,13 @@ metadata:
 - 最近一次基于上游源码的审计时间与变更说明，统一记录在 `CHANGELOG.md` 与 `plans/2026-04-19-vibe-contract-audit-and-hardening.md`；本节只保留当前仍然生效的能力与限制。
 
 - 当前 `/vibe/agent/*` 已覆盖模板 `add/delete`、报道风格 `list/create/update/delete`、订阅 `create/update/parse-prompt/delete`、报道 `generate/delete`、域名规则 `get/set`，以及 `ping/connect/heartbeat/disconnect`。
-- `templates add` 已对齐 `sourceType=search|rss_opml` 与可选 `opml`；其中 `search` 模板会由服务端在创建时自动预生成并持久化模板级 `derivedQuery / derivedPlan`，当前 CLI 仍不支持手工传入模板级 `derived_*`。
-- 当前 Vibe 模板路由仍要求 `query` 为非空字符串；也就是说即使主站 `templates` API 已允许 `rss_opml` 模板持久化空 query，bridge skill 走 `/vibe/agent/templates` 时仍必须显式提供 `--query`。
+- `templates add` 已对齐 `sourceType=search|rss_opml|hybrid` 与可选 `opml`；其中 `search/hybrid` 模板会由服务端在创建时自动预生成并持久化模板级 `derivedQuery / derivedPlan`，当前 CLI 仍不支持手工传入模板级 `derived_*`。
+- 当前 Vibe 模板路由仍要求 `query` 为非空字符串；也就是说即使主站 `templates` API 已允许 `rss_opml` 模板持久化空 query，bridge skill 走 `/vibe/agent/templates` 时仍必须显式提供 `--query`（`hybrid` 本身也要求 query）。
 - 默认 derived 路径是“AI 宿主型本地生成”：先在当前对话里生成 `derivedQuery / derivedPlan`，再显式写回 dudu。
 - 可选“脚本自驱型本地生成”：用 `python3 scripts/local_derive.py ...` 预览，或在 `subscriptions create/update` 里加 `--local-derived-script`，先调用本地 `codex` / `claude` CLI 生成，再写回 dudu。
 - `subscriptions create/update` 支持 `derivedQuery` / `derivedPlan`；需要服务端重算时，用 `subscriptions parse-prompt` 或更新时的 `--refresh-derived/--no-refresh-derived`。
 - `subscriptions update` 只接受 `name/prompt/frequency/ai/derivedQuery/derivedPlan/refreshDerived`；旧字段 `groupId`、`generationAi`、`tier`、`style` 会在本地直接拒绝。
-- dudu 主项目当前已存在订阅级 `search_mode` 等主站字段，但 `/vibe/agent/subscriptions*` 仍未开放这些字段；本 skill 不会假装支持，也不会越权改走 `/topics/*`。
+- dudu 主项目当前已存在订阅级 `search_mode` 等主站字段，但 `/vibe/agent/subscriptions*` 仍未开放这些字段；本 skill 不会假装支持，也不会越权改走 `/topics/*`。订阅创建已开放 `sourceType=search|rss_opml|hybrid` 与 `opml`，其中 `hybrid` 会先采集 RSS、再用 prompt 的搜索计划补充召回。
 - `subscriptions update` 与 `subscriptions parse-prompt --ai ...` 会由服务端顺带同步 `topic_subscriptions.generation_ai_config`，以保持手动“生成报道”和订阅默认 AI 的口径一致；但 bridge skill 仍不接受显式 `--generation-*`，避免和当前 Vibe 契约漂移。
 - `styles list` 当前走的是 `available` 视图：会返回“内置风格 + 当前用户私有风格 + 市场可见风格”；bridge skill 不额外暴露 `mine/market/builtin` 过滤参数。
 - `styles create/update` 已可透传 `visibility=private|market` 与 `baseStyle`，可用于私有风格和市场风格发布/继承。
@@ -98,7 +98,7 @@ python3 scripts/client.py doctor
 - 报道风格：先 `styles list` 看当前“Vibe 可见风格目录”（内置 + 自己的私有 + 市场可见），再按需 `styles create/update/delete`
 - 域名规则：先 `domains get`，再 `domains set`；默认安全合并，只有“完全替换”才用 `--reset`
 - 订阅 prompt / `derived_*`：默认先本地产生 `derivedQuery / derivedPlan` 再显式写回；只有用户明确要求服务端重算，或本地生成不可用时，才用 `subscriptions parse-prompt`
-- 订阅字段边界：当前 Vibe 仍只允许修改 `name/prompt/frequency/ai/derivedQuery/derivedPlan/refreshDerived`；若用户想调 `searchMode`、`groupId`、`generationAi` 等主站字段，应明确告知“当前 bridge skill 不覆盖”
+- 订阅字段边界：创建支持 `name/prompt/frequency/ai/derivedQuery/derivedPlan/sourceType/opml`；更新仍只允许 `name/prompt/frequency/ai/derivedQuery/derivedPlan/refreshDerived`。若用户想调 `searchMode`、`groupId`、`generationAi` 等主站字段，应明确告知“当前 bridge skill 不覆盖”。
 - 宿主 AI 想把本地生成下沉到脚本时，用 `python3 scripts/local_derive.py ...` 或 `subscriptions create/update --local-derived-script`
 - 模板 / 报道按需执行；所有写操作默认自动 `connect → disconnect`
 
@@ -113,6 +113,7 @@ python3 scripts/client.py --dry-run domains set --reset --allowlist example.com
 - 白名单 / 黑名单 / 关键词：`domains set --allowlist ...`、`--blocklist ...`、`--keywords ...`
 - 报道风格：`styles list`、`styles create --payload-file ...`、`styles update --id ... --payload-json ...`、`styles delete --id ...`
 - 新增订阅：`subscriptions create --frequency daily`
+- 创建 RSS + 搜索混合订阅：`subscriptions create --source-type hybrid --opml @feeds.opml --frequency daily`
 - 本地生成后写回：`subscriptions update --topic-id ... --prompt ... --derived-query ... --derived-plan-file ...`
 - 命令行本地生成并写回：`subscriptions update --topic-id ... --prompt ... --local-derived-script`
 - 让服务端重算 derived：`subscriptions parse-prompt --topic-id ...`

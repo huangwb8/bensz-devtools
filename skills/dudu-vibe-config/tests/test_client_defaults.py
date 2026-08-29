@@ -35,6 +35,43 @@ def _parse_json_stream(raw: str) -> list[dict]:
 
 
 class SubscriptionCreateDefaultsTest(unittest.TestCase):
+    def test_hybrid_create_payload_includes_source_type_and_opml(self) -> None:
+        payload = client._build_subscription_create_payload(
+            name="访谈更新",
+            prompt="podcast interview",
+            frequency="daily",
+            tier=None,
+            style="deep_research",
+            sdk="codex_cli",
+            model="",
+            reasoning_effort="medium",
+            thinking_mode=None,
+            derived_query=None,
+            derived_plan=None,
+            source_type="hybrid",
+            opml="<opml version='2.0'><body><outline type='rss' xmlUrl='https://example.com/feed.xml'/></body></opml>",
+        )
+
+        self.assertEqual(payload["sourceType"], "hybrid")
+        self.assertIn("xmlUrl", payload["opml"])
+
+    def test_rss_create_requires_opml(self) -> None:
+        with self.assertRaises(SystemExit):
+            client._build_subscription_create_payload(
+                name="访谈更新",
+                prompt="podcast interview",
+                frequency="daily",
+                tier=None,
+                style=None,
+                sdk=None,
+                model=None,
+                reasoning_effort=None,
+                thinking_mode=None,
+                derived_query=None,
+                derived_plan=None,
+                source_type="rss_opml",
+            )
+
     def test_create_payload_defaults_to_codex_cli_cli_default_model_medium(self) -> None:
         payload = client._build_subscription_create_payload(
             name="开发工具追踪",

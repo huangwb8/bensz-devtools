@@ -27,6 +27,8 @@
 
 ### Added
 
+- `dudu-vibe-config` 新增 `sourceType=hybrid` 订阅创建透传、18 个高质量访谈/观点节目公开 RSS 的 OPML 配置，以及 RSS 优先、搜索补充的订阅说明。
+
 - 新增 `skills/bensz-notes-vibe-config`：基于 `/Volumes/2T01/Github/bensz-notes` 的 API 文档与控制器源码，提供 DevTools Agent API Token 客户端、环境检查、笔记/目录/标签/同步/设置/成员/token/审计/平台治理入口与单元测试
 - 为 `skills/dudu-vibe-config` 新增 2026-04-19 契约审计计划沉淀，并补充最新 Vibe 边界回归测试
 - 为 `skills/bensz-channel-vibe-config` 新增 tags 管理能力、文章标签关联/筛选/清空能力，以及自动化 CLI 回归测试

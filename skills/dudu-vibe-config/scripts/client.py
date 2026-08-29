@@ -335,6 +335,18 @@ def _load_json_input(*, inline_json: str | None, file_path: str | None, name: st
     return _parse_json_text(raw, name=name)
 
 
+def _load_text_arg(raw: str, *, name: str) -> str:
+    """Load an inline text argument, or ``@path`` without exposing file contents in logs."""
+    value = str(raw)
+    if not value.startswith("@"):
+        return value
+    path = Path(value[1:]).expanduser()
+    try:
+        return path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise SystemExit(f"Failed to read {name} file {path}: {exc}") from exc
+
+
 def _load_required_json_object_input(
     *,
     inline_json: str | None,
@@ -434,9 +446,19 @@ def _build_subscription_create_payload(
     thinking_mode: str | None,
     derived_query: str | None,
     derived_plan: Any | None,
+    source_type: str = "search",
+    opml: str | None = None,
 ) -> dict[str, Any]:
+    if source_type not in {"search", "rss_opml", "hybrid"}:
+        raise SystemExit(f"Invalid source type: {source_type!r}")
+    if source_type in {"rss_opml", "hybrid"} and not str(opml or "").strip():
+        raise SystemExit(f"sourceType={source_type} requires non-empty --opml (inline XML or @file)")
     freq = _parse_frequency_arg(frequency)
     payload: dict[str, Any] = {"name": name, "prompt": prompt, "frequency": freq}
+    if source_type != "search":
+        payload["sourceType"] = source_type
+    if opml is not None:
+        payload["opml"] = opml
     if tier is not None:
         payload["tier"] = tier
     if style is not None:
@@ -782,6 +804,8 @@ def cmd_subscriptions_create(
     thinking_mode: str | None,
     derived_query: str | None,
     derived_plan: Any | None,
+    source_type: str = "search",
+    opml: str | None = None,
 ) -> int:
     payload = _build_subscription_create_payload(
         name=name,
@@ -795,6 +819,8 @@ def cmd_subscriptions_create(
         thinking_mode=thinking_mode,
         derived_query=derived_query,
         derived_plan=derived_plan,
+        source_type=source_type,
+        opml=opml,
     )
     with _auto_connection(vibe, enable=True, timeout_seconds=timeout_seconds) as conn_id:
         res = _call(
@@ -1058,11 +1084,11 @@ def main(argv: list[str]) -> int:
     ta.add_argument(
         "--query",
         required=True,
-        help="模板 query/prompt。注意：当前 /vibe/agent/templates 即使是 rss_opml 也仍要求非空 query。",
+        help="模板 query/prompt。注意：当前 /vibe/agent/templates 即使是 rss_opml/hybrid 也仍要求非空 query。",
     )
     ta.add_argument("--frequency", required=True, choices=["hourly", "daily", "weekly"])
     ta.add_argument("--price", type=int, default=0)
-    ta.add_argument("--source-type", default="search", choices=["search", "rss_opml"])
+    ta.add_argument("--source-type", default="search", choices=["search", "rss_opml", "hybrid"])
     ta.add_argument("--description", default=None)
     ta.add_argument("--opml", default=None)
     td = templates_sub.add_parser("delete")
@@ -1089,6 +1115,13 @@ def main(argv: list[str]) -> int:
     sc.add_argument("--name", required=True)
     sc.add_argument("--prompt", required=True)
     sc.add_argument("--frequency", required=True, help="hourly|daily|weekly or JSON for custom frequency")
+    sc.add_argument(
+        "--source-type",
+        default="search",
+        choices=["search", "rss_opml", "hybrid"],
+        help="订阅来源：search（默认）、rss_opml 或 hybrid（RSS 优先、搜索补充）。",
+    )
+    sc.add_argument("--opml", default=None, help="rss_opml/hybrid 的 OPML 文本；也可传入 @文件路径读取。")
     sc.add_argument("--tier", default=None, choices=TIER_CHOICES)
     sc.add_argument("--style", default=None, help="Report style (e.g., deep_research)")
     sc.add_argument("--sdk", default=None, choices=SDK_CHOICES)
@@ -1289,6 +1322,8 @@ def main(argv: list[str]) -> int:
                     args.thinking_mode,
                     derived_query,
                     derived_plan,
+                    args.source_type,
+                    _load_text_arg(args.opml, name="opml") if args.opml else None,
                 )
             if args.subs_cmd == "update":
                 derived_plan = _load_json_input(

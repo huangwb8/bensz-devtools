@@ -22,14 +22,14 @@
 - 最近一次基于上游源码的审计时间与变更说明，统一记录在 `CHANGELOG.md` 与 `plans/2026-04-19-vibe-contract-audit-and-hardening.md`；本节只保留当前仍然生效的能力与限制。
 
 - 当前 `dudu` 最新 `/vibe/agent/*` 实际开放的能力：模板 `add/delete`、报道风格 `list/create/update/delete`、订阅 `create/update/parse-prompt/delete`、报道 `generate/delete`、域名规则 `get/set`，以及 `ping/connect/heartbeat/disconnect`。
-- 模板创建已支持 `sourceType=search|rss_opml` 与可选 `opml`；对于 `search` 模板，服务端会在创建时自动预生成并持久化模板级 `derivedQuery / derivedPlan`，当前 skill 不支持手工传入模板级 `derived_*`。
-- 当前 `/vibe/agent/templates` 仍要求 `query` 为非空字符串；因此即使主站 `templates` API 已允许 `rss_opml` 模板空 query，bridge skill 走 Vibe 路由时也必须继续传 `--query`。
+- 模板创建已支持 `sourceType=search|rss_opml|hybrid` 与可选 `opml`；对于 `search/hybrid` 模板，服务端会在创建时自动预生成并持久化模板级 `derivedQuery / derivedPlan`，当前 skill 不支持手工传入模板级 `derived_*`。
+- 当前 `/vibe/agent/templates` 仍要求 `query` 为非空字符串；因此即使主站 `templates` API 已允许 `rss_opml` 模板空 query，bridge skill 走 Vibe 路由时也必须继续传 `--query`（`hybrid` 本身也要求 query）。
 - 当前 skill 的默认策略已切到 **AI 宿主型本地生成**：当你在 Codex / Claude Code 里直接使用本 skill 调整 subscription prompt / derived_* 时，推荐先在当前本地对话里生成 `derivedQuery / derivedPlan`，再显式写回 dudu，而不是把这一步默认交给 dudu 服务端。
 - 当前 skill 也新增了 **脚本自驱型本地生成**：`scripts/local_derive.py` 可直接调用本地 `codex` / `claude` CLI 生成 derived；`scripts/client.py subscriptions create|update --local-derived-script` 则可把“本地生成 + 写回 dudu”合成一条命令。
 - `subscriptions create/update` 现已支持显式写入 `derivedQuery` / `derivedPlan`；若不显式提供，服务端会按当时可用 AI 环境尝试刷新，并在返回体中带回 `derivedRefreshStatus`、`derivedQuery`、`derivedAt`。
 - `subscriptions update` 当前只对齐 **Vibe 专用契约**：`name/prompt/frequency/ai/derivedQuery/derivedPlan/refreshDerived`。
 - `groupId`、`generationAi`、`tier`、`style` 属于主站 `/topics` / `/topics/:id/subscribe` 语义，不是当前 Vibe PATCH 契约；本 skill 现会在本地明确拒绝这些旧参数，避免继续把请求打成 400。
-- dudu 主项目当前已有订阅级 `search_mode`，但 `/vibe/agent/subscriptions*` 仍未暴露 `searchMode`；本 skill 不会假装支持，也不会越权改走 `/topics/*`。
+- dudu 主项目当前已有订阅级 `search_mode`，但 `/vibe/agent/subscriptions*` 仍未暴露 `searchMode`；本 skill 不会假装支持，也不会越权改走 `/topics/*`。订阅创建现在支持 `sourceType=search|rss_opml|hybrid` 与 `opml`；`hybrid` 语义是 RSS 优先、搜索补充。
 - `subscriptions update` 与 `subscriptions parse-prompt --ai ...` 在服务端会顺带同步 `topic_subscriptions.generation_ai_config`，让“订阅默认 AI”与手动“生成报道”保持一致；bridge skill 仍不接受显式 `--generation-*`，避免越过当前 Vibe 契约。
 - `styles list` 当前返回的是 `available` 目录：内置风格、当前用户私有风格、以及市场可见风格会一起出现；当前 Vibe 路由未暴露 `mine/market/builtin` 过滤参数。
 - `styles create/update` 已支持直接透传 `visibility=private|market` 与 `baseStyle`，可用于私有风格和风格市场发布。
@@ -112,7 +112,7 @@ python3 scripts/client.py doctor --watch-seconds 120
 
 说明：`doctor`/`doctor --watch-seconds` 输出为 JSON（或多条 JSON），便于在工具调用中稳定解析；若 Web 端触发终止，会输出 `terminate_requested=true` 并以退出码 0 结束。`--local-derived-script` 走的是你当前机器上的 `codex` / `claude` CLI，不依赖 dudu 主项目是否配置好了 provider；但若你改用 `subscriptions parse-prompt`，那仍依赖 dudu 服务端自己的 AI 环境。
 
-兼容性提醒：`subscriptions update` 现在是真正落到最新 `/vibe/agent/subscriptions/:topicId` 的，而不是旧的“前向兼容包装”。如果你传入当前 Vibe 契约不支持的旧字段（如 `--group-id`、`--generation-*`、`--tier`、`--style`），CLI 会在本地输出结构化 `unsupported_server_capability`，避免把请求直接打坏。当前 dudu 主项目虽已有订阅级 `searchMode`，但 `/vibe/agent/subscriptions*` 仍未开放，bridge skill 也不会绕过到 `/topics/*`。
+兼容性提醒：`subscriptions update` 现在是真正落到最新 `/vibe/agent/subscriptions/:topicId` 的，而不是旧的“前向兼容包装”。如果你传入当前 Vibe 契约不支持的旧字段（如 `--group-id`、`--generation-*`、`--tier`、`--style`），CLI 会在本地输出结构化 `unsupported_server_capability`，避免把请求直接打坏。订阅创建支持 `--source-type hybrid --opml @feeds.opml`，用于 RSS 优先、搜索补充；订阅更新仍不开放 `searchMode` 或来源类型切换。
 
 ```bash
 # 域名规则（读取）
@@ -132,7 +132,7 @@ python3 scripts/client.py templates add --title "模板标题" --query "检索�
 python3 scripts/client.py templates add --title "RSS 模板" --query "RSS 导入模板" --frequency daily --source-type rss_opml --opml '<opml version="2.0">...</opml>'
 python3 scripts/client.py templates delete --id <template-id>
 # 当前模板 derived 由 dudu 服务端在创建 search 模板时自动生成并持久化；CLI 不支持手工传模板 derived
-# 注意：当前 Vibe 路由下 rss_opml 仍要求非空 --query
+# 注意：当前 Vibe 路由下 rss_opml/hybrid 仍要求非空 --query
 
 # 报道风格
 python3 scripts/client.py styles list
@@ -145,6 +145,7 @@ python3 scripts/client.py styles delete --id custom_style
 # 订阅
 # 未传 AI 参数时，默认创建为 codex_cli + CLI/provider 默认模型 + medium
 python3 scripts/client.py subscriptions create --name "订阅名" --prompt "订阅提示词" --frequency daily
+python3 scripts/client.py subscriptions create --name "高质量访谈节目与观点视频｜RSS + 搜索" --prompt '高质量访谈 OR 观点视频 OR podcast；追踪 Dwarkesh、Conversations with Tyler、EconTalk、Mindscape、Acquired、Hard Fork、十三邀、半拿铁、硅谷101、知行小酒馆等节目及其嘉宾的新单集；优先节目官网与官方频道，排除搬运和营销内容' --frequency daily --source-type hybrid --opml @docs/high-quality-interviews-hybrid.opml --style deep_research
 python3 scripts/client.py subscriptions create --name "开发工具追踪" --prompt "跟踪 Claude Code / Codex CLI / MCP 更新" --frequency daily --sdk claude_code --reasoning-effort medium --thinking-mode thinking
 # 用脚本自驱方式先在本地生成 derived_* 再创建订阅
 python3 scripts/client.py subscriptions create --name "AI 安全" --prompt '"AI safety" OR alignment' --frequency daily --local-derived-script

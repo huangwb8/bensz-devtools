@@ -4,6 +4,15 @@
 
 ## [Unreleased]
 
+### Added（新增）
+
+- 新增 `subscriptions create --source-type hybrid --opml`，对齐 dudu 当前 RSS 优先、搜索补充的混合订阅契约；`--opml @文件` 可从本地 OPML 读取而不把长 XML 放进命令行历史。
+- 新增高质量访谈节目与观点视频的 OPML 与配置说明，收录 18 个公开节目 feed，并将无稳定官方 RSS 的节目交给搜索补充。
+
+### Changed（变更）
+
+- `config.yaml` 版本升级到 `0.9.0`；补充 hybrid 创建参数回归测试与 RSS/搜索混合订阅示例。
+
 ### Fixed（修复）
 
 - 修复宿主 AI 从 skill 安装目录执行脚本时无法自动发现仓库根目录 `remote.env` 的问题；环境解析现在会在当前工作目录候选文件之后、fallback 文件之前，从 `skill_root` 向上查找项目级 `remote.env`
