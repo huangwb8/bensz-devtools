@@ -28,6 +28,15 @@
 
 ---
 
+介绍 https://github.com/huangwb8/bensz-auto-contribution自上次发表的相关文章以来的commit/release的情况，写个文章介绍下。 发到 bensz channel 的 Vibe 频道上。 要求：
+
+- 开头第1段，结合既往 bensz channel 上和 bensz-auto-contribution有关的文章（有一些是草稿状态，因此不需要给出超链接，反正用户也看不到）一起讨论，这样比较有连贯性
+- 第2段开始，介绍那些用户可能感兴趣的新功能、新特性，或者一些重点被优化的点。要求重点突出、较为详尽，让读者能切实地感受到项目的变化。
+- 技术原理不要介绍太多； 主要是从产品经理向用户介绍产品的口径来出发。要有高级感但又不脱离实际。写作风格类似于 /Volumes/2T01/winE/我的坚果云/样式备份/网站/blognas.hwb0307.com/blog/new02/AGENTS.md ， 这样就更像是我写的文章
+- 文末附带项目github地址。成文后直接发布，不用经过我审核。
+
+---
+
 介绍 https://github.com/huangwb8/bensz-auto-contribution 这个新项目，写个文章介绍下。  发到 bensz channel 的 Vibe 频道上。 要求：
 
 - 要求重点突出、较为详尽，让读者能切实地感受到项目的变化
@@ -35,6 +44,14 @@
 - 文末要附带项目github地址
 
 # bensz-notes
+
+---
+
+介绍 /Volumes/2T01/Github/bensz-notes 这个项目的进展（看 /Volumes/2T01/Github/bensz-notes 的commit信息就知道），写个文章介绍下。 发到 bensz channel 的 开发 频道上。 要求：
+
+- 和上次介绍相比，有哪些巨大的进步。
+- 技术原理不要介绍太多； 主要是从产品经理向用户介绍产品的口径来出发。要有高级感但又不脱离实际。写作风格类似于 /Volumes/2T01/winE/我的坚果云/样式备份/网站/blognas.hwb0307.com/blog/new02/AGENTS.md ， 这样就更像是我写的文章
+- 文末不要附带项目github地址，因为这是私人项目。成文后直接发布，不用经过我审核。
 
 ---
 
@@ -65,7 +82,38 @@
 - 技术原理不要介绍太多； 主要是从产品经理向用户介绍产品的口径来出发。要有高级感但又不脱离实际。写作风格类似于 /Volumes/2T01/winE/我的坚果云/样式备份/网站/blognas.hwb0307.com/blog/new02/AGENTS.md ， 这样就更像是我写的文章
 - 文末不要附带项目github地址，因为这是私人项目。成文后直接发布，不用经过我审核。
 
+---
+
+请开发 skills/bensz-notes-vibe-config。 它负责与 /Volumes/2T01/Github/bensz-notes DevTools界面里的API进行各种交互，从而实现笔记等各种管理； 为了更好地开发，你需要对bensz-notes 的源代码有深入理解 。  ./remote.env 部分内容是一个真实可用的 bensz-notes 站点的鉴权信息，在 `# bensz note` 下面，你可以用于测试； 但不能干扰目前站点里已有的状态。开发skill要严格按 /Volumes/2T01/winE/PythonCloud/Agents/pipelines/skills 的开发规范。 skill的demo做完后，使用 Auto Test Skill skill 进行1轮优化，然后 Compact Bensz Skills  skill 进行压缩。最后，使用 [$install-bensz-skills](/Volumes/2T01/Cache/.codex/skills/install-bensz-skills/SKILL.md) 安装到本设备。
+
 # BenszAPI
+
+---
+
+介绍 /Volumes/2T01/Github/sub2api 自上次发表BenszAPI 频道的相关文章以来的commit/release的情况，写个文章介绍下。 发到 bensz channel 的 BenszAPI 频道上。 要求：
+
+- 最开始强调一下建议打开智能路由模式，使用 `远程更新 bensz skills` 的命令更新 bensz skills
+- 第1段，结合既往 bensz channel 上和 sub2api 有关的文章（有一些是草稿状态，因此不需要给出超链接，反正用户也看不到）一起讨论，这样比较有连贯性
+- 第2段开始，介绍那些用户可能感兴趣的新功能、新特性，或者一些重点被优化的点。要求重点突出、较为详尽，让读者能切实地感受到项目的变化。特别是：
+  - 引入了基于OpenAI API渠道的text能力，虽然更贵，但更加纯净，很适合基于GPT 6 Astra的超级专业/严肃的brain storming、高端模型的制定计划（执行计划一般用订阅额度就行； 但制定计划有时候为了不降智，基于API的方式还是比较稳的）、科研正式用途或其它比较正式、严肃的用途。 通过Frontier分组支持，目前支持在 Premium/Ultra/Max 的订阅用户中试用。
+  - Image能力
+    - 部分地由OpenAI API渠道兜底，更加稳定。
+    - GPT Image 2.5 系列已经正式地支持
+  - 智能路由：
+    - 即将引入OpenAI Decisions API（类似Jev），为更好的路由性能奠定基础； 并承诺OpenAI只要一开放就兼容。
+    - 默认智能路由分类模型由 `gpt-5.6-luna` 调整为 `gpt-6-luna`
+    - 智能路由的Prompt模板也有很多优化，你也可以说一下
+    - 引入缓存系统，大幅降低调用费用。
+    - Prompt 路由分类来源显示
+  - 发票明细
+    - 优化订单号
+    - 新增微信客服
+  - 订阅分组的一些前端显示的优化
+  - 其它你觉得对于用户来说值得一提的功能； 不要透露管理员相关的功能优化，因为用户不关心这些
+- 全程不可以出现openai、anthropic等国外大模型的任何字眼。
+- 不要用sub2api这个字眼，而是用BenszAPI
+- 技术原理不要介绍太多； 主要是从产品经理向用户介绍产品的口径来出发。要有高级感但又不脱离实际。写作风格类似于 /Volumes/2T01/winE/我的坚果云/样式备份/网站/blognas.hwb0307.com/blog/new02/AGENTS.md ， 这样就更像是我写的文章
+- 文末不要附带项目github地址，因为这是私人项目。成文后直接发布，不用经过我审核。
 
 ---
 
@@ -295,6 +343,15 @@ https://channel.hwb0307.com/channels/716f55930b26ce88/articles/e175fb843cd0ce88 
 
 ---
 
+介绍 https://github.com/huangwb8/ChineseResearchLaTeX 的最近几次commit/release的情况，写个文章介绍下。  发到 bensz channel 的 科研 频道上。 要求：
+
+- 开头第1段，结合既往 bensz channel 上和 ChineseResearchLaTeX 有关的文章一起讨论，这样比较有连贯性
+- 第2段开始，介绍最近的新变化。要求重点突出、较为详尽，让读者能切实地感受到项目的变化
+- 写作风格类似于 /Volumes/2T01/winE/我的坚果云/样式备份/网站/blognas.hwb0307.com/blog/new02/AGENTS.md ， 这样就更像是我写的文章
+- 文末要附带项目github地址
+
+---
+
 国科大博士论文模板正式加入是个重要的里程碑，这是本项目第1个实质性的pr。 你结合 https://github.com/huangwb8/ChineseResearchLaTeX 的pr/commit/release情况，写个文章介绍下。  发到 bensz channel 的 科研 频道上。 要求：
 
 - 请结合既往 bensz channel 上和 ChineseResearchLaTeX 有关的文章一起讨论，这样比较有连贯性
@@ -323,6 +380,18 @@ https://github.com/huangwb8/ChineseResearchLaTeX 的v4.0.0和v3之间有非常�
   - 文末要附带项目github地址
 
 # skills
+
+---
+
+介绍 https://github.com/huangwb8/skills 的自上次发表的相关文章以来最近几次commit/release的情况，写个文章介绍下。  发到 bensz channel 的 vibe 频道上。 要求：
+
+- 开头写明： 用户进入 BenszAPI 里，对应的API开启智能路由模式。 然后，在Codex里输入`更新 bensz skills`即可更新
+- 第1段落小结既往 bensz channel 上和 huangwb8/skills 有关的文章一起讨论，这样比较有连贯性。
+- 第2段开始，重点介绍最近的一些更新。 要求
+  - 重点突出
+  - 较为详尽，让读者能切实地感受到项目的变化
+  - 写作风格类似于 /Volumes/2T01/winE/我的坚果云/样式备份/网站/blognas.hwb0307.com/blog/new02/AGENTS.md ， 这样就更像是我写的文章
+  - 文末要附带项目github地址
 
 ---
 
@@ -375,19 +444,20 @@ https://github.com/huangwb8/ChineseResearchLaTeX 的v4.0.0和v3之间有非常�
 
 介绍/Volumes/2T01/Github/skills 的最新release的情况，发到 vibe 频道里。写法上，要和上一次相关的发布有所继承。
 
-# bensz-notes
-
-请开发 skills/bensz-notes-vibe-config。 它负责与 /Volumes/2T01/Github/bensz-notes DevTools界面里的API进行各种交互，从而实现笔记等各种管理； 为了更好地开发，你需要对bensz-notes 的源代码有深入理解 。  ./remote.env 部分内容是一个真实可用的 bensz-notes 站点的鉴权信息，在 `# bensz note` 下面，你可以用于测试； 但不能干扰目前站点里已有的状态。开发skill要严格按 /Volumes/2T01/winE/PythonCloud/Agents/pipelines/skills 的开发规范。 skill的demo做完后，使用 Auto Test Skill skill 进行1轮优化，然后 Compact Bensz Skills  skill 进行压缩。最后，使用 [$install-bensz-skills](/Volumes/2T01/Cache/.codex/skills/install-bensz-skills/SKILL.md) 安装到本设备。
-
 # dudu
 
 ---
 
-(还没做)
+我希望目前所有已经存在的 dudu 订阅的模型均设置为： 
+
+- 模型 gpt-6-luna
+- 推理强度 high
+
+---
 
 我比较关心V2EX 社区、LINUX DO 社区、知乎社区、Reddit 社区里关于如何OpenAI或Anthropic关于注册、优惠、帐号等有关的讨论很感兴趣。请你帮我添加一个dudu订阅，让我可以随时跟踪最新信息。注意事项：
 
-- SDK： OpenAI Codex CLI； 模型 gpt-5.4； 推理强度medium。
+- SDK： OpenAI Codex CLI； 模型 gpt-6-luna； 推理强度medium。
 - 使用 dudu-vibe-config skill 为 dudu服务器新增一个订阅
 - 风格：深度报道
 - 频率：1天

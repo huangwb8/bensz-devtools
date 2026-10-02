@@ -28,6 +28,8 @@
 
 ### Added
 
+- 新增 `docs/articles/2026-10-02-bensz-skills-v5-update.md`：承接 Bensz Channel 2026-08-09 的既往报道，介绍 huangwb8/skills v4.3.6～v5.0.13 的执行内核、安装更新、R 流水线与统计推断变化；已发布至 Vibe 频道，文章 public_id 为 `18004a0d81749233`，21 个正文外链检查通过，发布后只读回查确认正文及标签一致（服务端移除了末尾换行）。
+
 - `dudu-vibe-config` 新增 `sourceType=hybrid` 订阅创建透传、18 个高质量访谈/观点节目公开 RSS 的 OPML 配置，以及 RSS 优先、搜索补充的订阅说明。
 
 - 新增 `skills/bensz-notes-vibe-config`：基于 `/Volumes/2T01/Github/bensz-notes` 的 API 文档与控制器源码，提供 DevTools Agent API Token 客户端、环境检查、笔记/目录/标签/同步/设置/成员/token/审计/平台治理入口与单元测试
