@@ -5,7 +5,8 @@
 ## 适用场景
 
 - 批量维护域名规则（allowlist/blocklist/keywords）
-- 创建/删除模板（Templates）
+- 管理已有订阅参数、批量 AI 与频率配置；本机查询可在获授权后启用只读入口
+- 保留模板历史 CLI；当前上游用户级 Vibe 禁止模板写入
 - 管理报道风格（Report Styles）：列出、创建、更新、删除
 - 创建/更新/退订订阅（Subscriptions），并可显式指定主题 AI 与检索式构建结果
 - 主动刷新订阅的 `derivedQuery / derivedPlan`
@@ -19,14 +20,14 @@
 
 ## 当前能力边界
 
-- 最近一次基于上游源码的审计时间与变更说明，统一记录在 `CHANGELOG.md` 与 `plans/2026-04-19-vibe-contract-audit-and-hardening.md`；本节只保留当前仍然生效的能力与限制。
-
-- 当前 `dudu` 最新 `/vibe/agent/*` 实际开放的能力：模板 `add/delete`、报道风格 `list/create/update/delete`、订阅 `create/update/parse-prompt/delete`、报道 `generate/delete`、域名规则 `get/set`，以及 `ping/connect/heartbeat/disconnect`。
-- 模板创建已支持 `sourceType=search|rss_opml|hybrid` 与可选 `opml`；对于 `search/hybrid` 模板，服务端会在创建时自动预生成并持久化模板级 `derivedQuery / derivedPlan`，当前 skill 不支持手工传入模板级 `derived_*`。
-- 当前 `/vibe/agent/templates` 仍要求 `query` 为非空字符串；因此即使主站 `templates` API 已允许 `rss_opml` 模板空 query，bridge skill 走 Vibe 路由时也必须继续传 `--query`（`hybrid` 本身也要求 query）。
+- 当前契约以 2026-10-02 上游审计为准，完整操作说明见 [已有订阅管理](docs/subscription-management.md)，历史计划保留。
+- 受限 API 支持报道风格、订阅创建/更新/解析/删除、报道生成/删除和域名规则；当前用户级模板创建/删除返回 403，CLI 为旧服务兼容保留。
+- 上游尚无订阅列表/详情 GET。`subscriptions list/show/update-many --all` 可在用户授权后使用 `--local-db-readonly`：只读本机数据库并按当前 Vibe Key 用户隔离；未启用时不读取数据库。
+- 单改 AI 默认跳过 derived 重算，读取配置后合并未指定的字段；没有读取能力时，用 `--replace-ai --sdk ... --model ...` 明确替换。批量修改和回读核验见下方示例。
+- AI 选项已对齐 `kimi` 与 `max`；报道生成支持 `--idempotency-key`、`attemptId` 和幂等重放响应。
 - 当前 skill 的默认策略已切到 **AI 宿主型本地生成**：当你在 Codex / Claude Code 里直接使用本 skill 调整 subscription prompt / derived_* 时，推荐先在当前本地对话里生成 `derivedQuery / derivedPlan`，再显式写回 dudu，而不是把这一步默认交给 dudu 服务端。
 - 当前 skill 也新增了 **脚本自驱型本地生成**：`scripts/local_derive.py` 可直接调用本地 `codex` / `claude` CLI 生成 derived；`scripts/client.py subscriptions create|update --local-derived-script` 则可把“本地生成 + 写回 dudu”合成一条命令。
-- `subscriptions create/update` 现已支持显式写入 `derivedQuery` / `derivedPlan`；若不显式提供，服务端会按当时可用 AI 环境尝试刷新，并在返回体中带回 `derivedRefreshStatus`、`derivedQuery`、`derivedAt`。
+- `subscriptions create/update` 支持显式写入 `derivedQuery` / `derivedPlan`；创建或修改 prompt 可触发服务端刷新，单改 AI 默认跳过刷新，结果通过 `derivedRefreshStatus` 返回。
 - `subscriptions update` 当前只对齐 **Vibe 专用契约**：`name/prompt/frequency/ai/derivedQuery/derivedPlan/refreshDerived`。
 - `groupId`、`generationAi`、`tier`、`style` 属于主站 `/topics` / `/topics/:id/subscribe` 语义，不是当前 Vibe PATCH 契约；本 skill 现会在本地明确拒绝这些旧参数，避免继续把请求打成 400。
 - dudu 主项目当前已有订阅级 `search_mode`，但 `/vibe/agent/subscriptions*` 仍未暴露 `searchMode`；本 skill 不会假装支持，也不会越权改走 `/topics/*`。订阅创建现在支持 `sourceType=search|rss_opml|hybrid` 与 `opml`；`hybrid` 语义是 RSS 优先、搜索补充。
@@ -36,14 +37,12 @@
 - 删除最后一个订阅时，当前服务端会一起清理 orphan topic 的运行工件、报道工件和 system events 等残留；bridge skill 以此为最新删除语义。
 - 所有写请求默认**不自动重试**，避免在超时或瞬时 5xx 后重复创建连接、模板或订阅。
 - 新增订阅时，如未显式指定 AI 配置，CLI 默认会发送 `codex_cli + CLI/provider 默认模型 + medium`；也就是 `sdk=codex_cli`、`model=""`、`reasoningEffort=medium`。若你明确传入 `--sdk/--model/--reasoning-effort`，则以显式参数为准。
-- 新增模板接口当前只保存模板元数据，不保存 AI 配置；因此“默认 SDK”只会作用在后续基于该模板创建订阅时，不会额外写入不存在的模板字段。
-- 当前 `/vibe/agent/templates` 仍不支持显式写入模板级 `derivedQuery / derivedPlan`；因此模板场景下的本地生成主要用于先把 query/prompt 打磨好，再交由 dudu 服务端自动持久化模板 derived 结果。
 
 ## 依赖与约束
 
 - Python 3（仅使用标准库；不依赖 `requests` / `PyYAML`）
 - 除纯本地 `--dry-run` 外，需要一个有效的 `Vibe URL + Vibe Key`
-- **安全边界**：只调用 `dudu` 的 `/vibe/agent/*` 受限接口；不做越权访问
+- **安全边界**：写入只调用 `/vibe/agent/*`；本机读取须用户明确授权及 `--local-db-readonly`，只允许回环 URL、当前 Key 用户范围与数据库只读事务
 - **禁止事项**：严禁修改 dudu 软件源代码（本 skill 仅用于配置侧变更）
 - **可靠性约束**：变更类请求默认不自动重试，优先避免重复写入
 
@@ -127,11 +126,11 @@ python3 scripts/client.py domains set --reset --allowlist example.com
 # dry-run：只打印将要发出的请求（不打印 key）；纯本地预览时不要求先配置 key
 python3 scripts/client.py --dry-run domains set --reset --allowlist example.com
 
-# 模板
+# 模板（仅供旧服务器兼容；当前用户级 Vibe 返回 403）
 python3 scripts/client.py templates add --title "模板标题" --query "检索词/提示词" --frequency daily
 python3 scripts/client.py templates add --title "RSS 模板" --query "RSS 导入模板" --frequency daily --source-type rss_opml --opml '<opml version="2.0">...</opml>'
 python3 scripts/client.py templates delete --id <template-id>
-# 当前模板 derived 由 dudu 服务端在创建 search 模板时自动生成并持久化；CLI 不支持手工传模板 derived
+# 当前版本须通过上游管理员入口维护全局模板，本 skill 不调用该入口
 # 注意：当前 Vibe 路由下 rss_opml/hybrid 仍要求非空 --query
 
 # 报道风格
@@ -157,8 +156,8 @@ python3 scripts/local_derive.py --prompt '"agentic coding" OR codex OR "claude c
 python3 scripts/client.py subscriptions update --topic-id <topic-uuid> --prompt '"agentic coding" OR codex OR "claude code"' --local-derived-script
 # 直接写入手工检索计划，不依赖当下 AI 刷新
 python3 scripts/client.py subscriptions update --topic-id <topic-uuid> --derived-query '"agentic coding" OR codex' --derived-plan-json '{"source":"ai","version":"2026-03-25","promptHash":"...","derivedQuery":"\"agentic coding\" OR codex"}'
-# 主动让 dudu 服务端重新解析 prompt，可附带临时 AI 配置
-python3 scripts/client.py subscriptions parse-prompt --topic-id <topic-uuid> --sdk claude --model claude-sonnet-4-5 --thinking-mode thinking
+# 主动让 dudu 服务端重新解析 prompt；附带 AI 会持久化并同步生成 AI
+python3 scripts/client.py subscriptions parse-prompt --topic-id <topic-uuid> --replace-ai --sdk claude --model claude-sonnet-4-5 --thinking-mode thinking
 # 旧的 metadata/generation 参数不属于当前 Vibe PATCH 契约，会被本地拒绝
 python3 scripts/client.py subscriptions update --topic-id <topic-uuid> --generation-sdk claude
 python3 scripts/client.py --dry-run subscriptions update --topic-id <topic-uuid> --prompt '"agentic coding" OR codex OR "claude code"' --frequency '{"type":"custom","interval_seconds":21600}'
@@ -174,6 +173,21 @@ python3 scripts/client.py reports delete --topic-id <topic-uuid> --report-id <re
 
 - **复杂配置编排/多步变更**：选择支持强工具调用与长上下文的“高可靠推理模型”（能在多轮 API 操作中保持一致性与安全边界）。
 - **单条命令执行/核对结果**：选择更快的“工具型模型”即可（关键是严格按 `scripts/client.py` 输出做决定）。
+
+## 已有订阅与批量设置
+
+```bash
+python3 scripts/client.py subscriptions list --local-db-readonly
+python3 scripts/client.py subscriptions show --topic-id UUID --local-db-readonly
+python3 scripts/client.py subscriptions update --topic-id UUID --model gpt-6-luna --reasoning-effort high --local-db-readonly
+python3 scripts/client.py subscriptions update-many --all --model gpt-6-luna --reasoning-effort high --local-db-readonly
+# 只读枚举并预览，不发 HTTP 请求
+python3 scripts/client.py --dry-run subscriptions update-many --all --model gpt-6-luna --reasoning-effort high --local-db-readonly
+# 远程已知 ID：显式替换 AI，缺少回读时返回 verified=false
+python3 scripts/client.py subscriptions update --topic-id UUID --replace-ai --sdk codex_cli --model gpt-6-luna --reasoning-effort high
+```
+
+本机示例须已有用户只读授权。批量预检全部 ID/配置，再逐项更新与核验，首个失败即停止，不自动回滚或重试。完整参数、JSON 结果、支持字段和上游限制见 [已有订阅管理](docs/subscription-management.md)。
 
 ## 订阅更新字段说明
 
@@ -200,7 +214,7 @@ python3 scripts/client.py reports delete --topic-id <topic-uuid> --report-id <re
 说明：
 - 仅在 `subscriptions create` 且用户未显式指定对应字段时自动补齐。
 - 若你显式传入 `--sdk claude_code`、`--model ""` 或其他覆盖值，CLI 不会强行改写你的选择。
-- 模板 API 当前没有 `ai` 字段，所以 `templates add` 不会持久化上述默认 AI 配置。
+- 当前用户级模板写接口返回 403，这些默认值只作用于创建订阅。
 
 ## 报道风格 JSON
 

@@ -1,6 +1,6 @@
 ---
 name: dudu-vibe-config
-description: dudu 氛围配置“桥梁”Skill：通过 Vibe Agent API（/vibe/agent/*）在受限范围内管理模板/报道风格/订阅/报道/域名规则，适用于 Claude Code/Codex 远程优化配置。
+description: 管理 dudu 的已有订阅参数、批量 AI 配置、报道风格、报道和域名规则；写入通过 Vibe Agent API，本机订阅查询须获只读授权。
 metadata:
   author: Bensz Conan
   short-description: dudu 氛围配置远程桥梁（Vibe Agent API）
@@ -30,9 +30,9 @@ metadata:
 ## 目标
 
 把“人类的配置意图”翻译成对 `dudu` `Vibe Agent API` 的受限操作，仅覆盖：
-- 模板：创建 / 删除
+- 模板：保留历史 CLI 入口；当前用户级 Vibe API 禁止模板写入
 - 报道风格：列出 / 创建 / 更新 / 删除
-- 订阅：创建 / 更新 / 解析 prompt / 删除
+- 订阅：查询 / 创建 / 更新 / 批量更新 / 解析 prompt / 删除
 - 报道：生成 / 删除
 - 域名规则：读取 / 更新
 
@@ -45,26 +45,30 @@ metadata:
 
 ## 当前能力边界
 
-- 最近一次基于上游源码的审计时间与变更说明，统一记录在 `CHANGELOG.md` 与 `plans/2026-04-19-vibe-contract-audit-and-hardening.md`；本节只保留当前仍然生效的能力与限制。
+- 当前契约以 2026-10-02 上游审计为准，详见 `docs/subscription-management.md` 与 `CHANGELOG.md`；历史计划保留。
 
-- 当前 `/vibe/agent/*` 已覆盖模板 `add/delete`、报道风格 `list/create/update/delete`、订阅 `create/update/parse-prompt/delete`、报道 `generate/delete`、域名规则 `get/set`，以及 `ping/connect/heartbeat/disconnect`。
-- `templates add` 已对齐 `sourceType=search|rss_opml|hybrid` 与可选 `opml`；其中 `search/hybrid` 模板会由服务端在创建时自动预生成并持久化模板级 `derivedQuery / derivedPlan`，当前 CLI 仍不支持手工传入模板级 `derived_*`。
-- 当前 Vibe 模板路由仍要求 `query` 为非空字符串；也就是说即使主站 `templates` API 已允许 `rss_opml` 模板持久化空 query，bridge skill 走 `/vibe/agent/templates` 时仍必须显式提供 `--query`（`hybrid` 本身也要求 query）。
+- 当前 `/vibe/agent/*` 已覆盖报道风格 `list/create/update/delete`、订阅 `create/update/parse-prompt/delete`、报道 `generate/delete`、域名规则 `get/set`，以及 `ping/connect/heartbeat/disconnect`。
+- 全局模板写入已由管理员 API 管理；用户级 Vibe 的模板创建/删除均返回 403。保留旧 CLI 入口便于旧服务器兼容，不改走管理员 API。
+- 上游尚无订阅列表/详情读取接口，`ping` 不返回订阅。`subscriptions list/show` 通过显式 `--local-db-readonly` 读取本机数据库；未授权时不访问数据库，远程场景须提供订阅 ID。
+- `subscriptions update-many --all` 维护当前 Vibe Key 用户的全部订阅；也可重复 `--topic-id` 维护指定集合。列表来源、AI 合并及逐项核验见 `docs/subscription-management.md`。
 - 默认 derived 路径是“AI 宿主型本地生成”：先在当前对话里生成 `derivedQuery / derivedPlan`，再显式写回 dudu。
 - 可选“脚本自驱型本地生成”：用 `python3 scripts/local_derive.py ...` 预览，或在 `subscriptions create/update` 里加 `--local-derived-script`，先调用本地 `codex` / `claude` CLI 生成，再写回 dudu。
 - `subscriptions create/update` 支持 `derivedQuery` / `derivedPlan`；需要服务端重算时，用 `subscriptions parse-prompt` 或更新时的 `--refresh-derived/--no-refresh-derived`。
 - `subscriptions update` 只接受 `name/prompt/frequency/ai/derivedQuery/derivedPlan/refreshDerived`；旧字段 `groupId`、`generationAi`、`tier`、`style` 会在本地直接拒绝。
+- 仅改 AI 且未传 prompt 时，默认 `refreshDerived=false`，保留检索计划。读取当前配置后仅合并用户指定的 AI 字段；切换 SDK 必须指定模型。没有读取能力时，用 `--replace-ai --sdk ... --model ...` 显式替换，未指定字段取服务端默认值。
+- SDK 已对齐 `kimi`，推理强度已对齐 `max`；不把某次操作的模型选择改成新增订阅的永久默认值。
 - dudu 主项目当前已存在订阅级 `search_mode` 等主站字段，但 `/vibe/agent/subscriptions*` 仍未开放这些字段；本 skill 不会假装支持，也不会越权改走 `/topics/*`。订阅创建已开放 `sourceType=search|rss_opml|hybrid` 与 `opml`，其中 `hybrid` 会先采集 RSS、再用 prompt 的搜索计划补充召回。
 - `subscriptions update` 与 `subscriptions parse-prompt --ai ...` 会由服务端顺带同步 `topic_subscriptions.generation_ai_config`，以保持手动“生成报道”和订阅默认 AI 的口径一致；但 bridge skill 仍不接受显式 `--generation-*`，避免和当前 Vibe 契约漂移。
 - `styles list` 当前走的是 `available` 视图：会返回“内置风格 + 当前用户私有风格 + 市场可见风格”；bridge skill 不额外暴露 `mine/market/builtin` 过滤参数。
 - `styles create/update` 已可透传 `visibility=private|market` 与 `baseStyle`，可用于私有风格和市场风格发布/继承。
 - 删除最后一个订阅时，当前服务端会同时清理 orphan topic 的运行工件、报道工件、notes/system events 等残留；bridge skill 已按这个最新闭环理解返回结果，不再把它当作“仅删一条订阅关系”。
 - 所有写请求默认不自动重试；新增订阅默认 AI 为 `sdk=codex_cli`、`model=""`、`reasoningEffort=medium`，显式参数优先。
-- 模板接口仍不保存模板级 AI 配置；若需要影响模板预生成的 derived 结果，应先在本地优化 `query/prompt`，再调用服务端创建。
+- `reports generate --idempotency-key ...` 支持服务端幂等请求头；返回 `attemptId`，重复请求可返回 `idempotentReplay`。默认不重试生成请求。
 
 ## 安全边界（强制）
 
 - 只允许调用：`{DUDU_VIBE_URL}/vibe/agent/*`
+- 本机只读例外：用户明确授权后可用 `--local-db-readonly`，仅限回环 URL；查询以有效 Vibe Key 所属用户为范围，SQL 使用 `BEGIN READ ONLY`，不读取原始 Key、不执行数据库写入。既有授权可复用，无须重复询问。
 - 不做越权访问（不调用其它路径；不绕过 KEY/connection 机制）
 - 严禁修改 **dudu 软件源代码**（本 skill 仅用于调用受限 API 更新“氛围配置”相关数据）
 - 不输出完整 Key；日志中必须脱敏（仅显示前缀）
@@ -95,12 +99,13 @@ python3 scripts/client.py doctor
 ```
 
 3. 先决定 derived 路径，再做变更
+- 已有订阅：授权范围内先 `subscriptions list/show --local-db-readonly` 确认 ID 与参数；AI 修改用 `update`，全部订阅用 `update-many --all`，带同一只读选项合并并核验。用户已授权修改时直接执行，批量首个失败即停止并报告完成清单。
 - 报道风格：先 `styles list` 看当前“Vibe 可见风格目录”（内置 + 自己的私有 + 市场可见），再按需 `styles create/update/delete`
 - 域名规则：先 `domains get`，再 `domains set`；默认安全合并，只有“完全替换”才用 `--reset`
 - 订阅 prompt / `derived_*`：默认先本地产生 `derivedQuery / derivedPlan` 再显式写回；只有用户明确要求服务端重算，或本地生成不可用时，才用 `subscriptions parse-prompt`
 - 订阅字段边界：创建支持 `name/prompt/frequency/ai/derivedQuery/derivedPlan/sourceType/opml`；更新仍只允许 `name/prompt/frequency/ai/derivedQuery/derivedPlan/refreshDerived`。若用户想调 `searchMode`、`groupId`、`generationAi` 等主站字段，应明确告知“当前 bridge skill 不覆盖”。
 - 宿主 AI 想把本地生成下沉到脚本时，用 `python3 scripts/local_derive.py ...` 或 `subscriptions create/update --local-derived-script`
-- 模板 / 报道按需执行；所有写操作默认自动 `connect → disconnect`
+- 报道按需执行；所有写操作默认自动 `connect → disconnect`
 
 4. 不确定时先 `--dry-run`；纯本地预览不要求预先配置 key
 
@@ -117,8 +122,9 @@ python3 scripts/client.py --dry-run domains set --reset --allowlist example.com
 - 本地生成后写回：`subscriptions update --topic-id ... --prompt ... --derived-query ... --derived-plan-file ...`
 - 命令行本地生成并写回：`subscriptions update --topic-id ... --prompt ... --local-derived-script`
 - 让服务端重算 derived：`subscriptions parse-prompt --topic-id ...`
-- 切到 `codex_cli` 高推理：`subscriptions update --topic-id ... --sdk codex_cli --reasoning-effort high --local-derived-script`
-- 创建 RSS 模板：`templates add --query "RSS 导入模板" --source-type rss_opml --opml '<opml ...>' ...`
+- 已有订阅改模型/推理：`subscriptions update --topic-id ... --model gpt-6-luna --reasoning-effort high --local-db-readonly`
+- 所有现有订阅改模型/推理：`subscriptions update-many --all --model gpt-6-luna --reasoning-effort high --local-db-readonly`
+- 远程已知 ID 显式替换 AI：`subscriptions update --topic-id ... --replace-ai --sdk codex_cli --model gpt-6-luna --reasoning-effort high`
 - 创建市场风格：`styles create --payload-file ./style-market.json`
 - 触发报道生成：`reports generate --topic-id ...`
 - 临时覆盖本次生成 AI：`reports generate --topic-id ... --sdk codex_cli --reasoning-effort high`
@@ -158,6 +164,7 @@ python3 scripts/client.py subscriptions create \
 - 202：请求已入队（主要出现在 `reports generate`）→ 视为成功
 - 5xx / 超时：GET 类请求最多重试 2 次；写请求不自动重试，避免重复写入
 - 非 HTTP 网络失败：输出结构化 `transport_error` JSON，不输出 Python traceback
+- 本机读取/合并失败：结构化错误并停止，预检不通过不发写请求；批量请求失败、终止或核验失败返回 `updated_count/results`，不自动回滚或重试，先回读确认实际状态。
 
 ## 输出约定（用于工具调用）
 

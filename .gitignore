@@ -76,6 +76,7 @@ skills/dudu-vibe-config/plans/*
 !skills/dudu-vibe-config/tests/
 skills/dudu-vibe-config/tests/*
 !skills/dudu-vibe-config/tests/test_client_defaults.py
+!skills/dudu-vibe-config/tests/test_subscription_management.py
 !skills/bensz-notes-vibe-config/tests/
 skills/bensz-notes-vibe-config/tests/*
 !skills/bensz-notes-vibe-config/tests/__init__.py

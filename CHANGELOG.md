@@ -6,6 +6,7 @@
 
 ### Changed
 
+- 按 2026-10-02 dudu 上游契约将 `dudu-vibe-config` 对齐至 `0.10.0`：新增已有订阅查询与批量 AI/频率更新，授权后通过用户隔离的本机只读入口枚举及核验，写入仍使用 Vibe API；同步 `README.md`、`skills/README.md`、skill 文档，并为新增订阅管理回归测试添加 `.gitignore` 精确例外。
 - 对齐全部 bridge skill 的中间文件约定：`SKILL.md`、README 与聚合索引统一使用本轮唯一的 `./.bensz-api/task-{yyyymmdd-hhmm}-{简短描述}/shared|{skill名}/input|output|log`，并明确凭据、正式交付物和同一逻辑任务目录复用边界。
 - 调整 `bensz-notes-vibe-config` 的 `sync_workspace.py`：不再默认向用户笔记目录写入 `.bensz-notes/sync-state.json`；需要改名识别基线时，调用方必须显式用 `--state-file` 指向当前 `.bensz-api` 任务目录。
 - 更新 `README.md`、`skills/README.md` 与 `.gitignore`：登记 `bensz-notes-vibe-config` 的本地优先工作区上传/镜像同步能力，并将其新增回归测试纳入版本控制。

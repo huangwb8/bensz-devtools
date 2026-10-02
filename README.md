@@ -22,9 +22,9 @@
 
 - 上游业务仓库：`/Volumes/2T01/winE/Starup/dudu`
 - 目标系统：`dudu`
-- 能力范围：模板、报道风格、订阅（含 RSS + 搜索 hybrid）、报道、域名规则
-- 安全边界：仅访问 `/vibe/agent/*`
-- 当前口径：对齐 dudu 最新 `Vibe Agent` 路由；订阅创建支持 `sourceType=hybrid`（RSS 优先、搜索补充），风格当前通过 `available` 视图暴露“内置 + 自己的私有 + 市场可见”条目，`searchMode` 等主站订阅字段仍未在 Vibe 路由开放
+- 能力范围：已有订阅参数查询/修改、批量 AI/频率设置、订阅创建（含 RSS + 搜索 hybrid）、报道风格、报道、域名规则；模板保留历史 CLI
+- 安全边界：写入仅访问 `/vibe/agent/*`；显式授权的 `--local-db-readonly` 仅查询回环地址部署中当前 Vibe Key 用户的订阅
+- 当前口径：按 2026-10-02 上游契约对齐至 `0.10.0`，提供 `subscriptions list/show/update-many`；上游未开放订阅 GET，本机读取依赖授权只读入口。AI 部分更新保留未指定字段，批量逐项核验。`searchMode` 等主站字段仍不可修改，用户级全局模板写入返回 403。详见 [订阅管理](skills/dudu-vibe-config/docs/subscription-management.md)
 
 ### `skills/bensz-channel-vibe-config`
 

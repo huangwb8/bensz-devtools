@@ -4,6 +4,27 @@
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-10-02
+
+### Added（新增）
+
+- `subscriptions list/show/update-many`：已有订阅查询、指定多个 ID 或全部订阅批量调整 AI/频率；显式授权的 `--local-db-readonly` 按当前 Vibe Key 用户隔离查询并逐项核验，SQL 强制只读事务，数据库参数默认值集中在 `config.yaml`。
+- `--replace-ai` 明确替换 AI 配置，支持无数据库读取的远程已知 ID 操作；批量预检、部分完成清单、终止/超时/核验失败停止处理。
+- `docs/subscription-management.md` 与订阅管理回归测试；补齐 `kimi/max` 选项和 `reports generate --idempotency-key`。
+
+### Fixed（修复）
+
+- AI 部分修改先合并当前配置，避免服务端为省略字段选择默认 SDK/model；切换 SDK 要求明确模型。`parse-prompt` 附带持久化 AI 也沿用合并/显式替换策略。
+- 单改 AI 且未传 prompt 默认跳过 derived 重算，保留检索计划；批量首个写入或核验失败停止，不自动重试或回滚。
+- 更正模板能力说明：当前上游用户级 Vibe 模板创建/删除返回 403，保留历史 CLI 兼容入口，不调用管理员 API。
+
+### Validation（验证）
+
+- CLI 单元测试覆盖正常批量、AI 字段保留、预检拒绝、核验失败、HTTP 失败、超时、终止、只读 SQL 与用户隔离；实机验证本机 `list/show` 及 12 个订阅的批量 dry-run，未执行 HTTP 写入。
+- 上游仍缺少列表/详情 GET；本次修复完成本机只读闭环，未修改上游业务代码或已安装的全局 skill。
+
+## [0.9.0]
+
 ### Added（新增）
 
 - 新增 `subscriptions create --source-type hybrid --opml`，对齐 dudu 当前 RSS 优先、搜索补充的混合订阅契约；`--opml @文件` 可从本地 OPML 读取而不把长 XML 放进命令行历史。

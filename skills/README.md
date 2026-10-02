@@ -24,9 +24,10 @@
 - 上游业务仓库：`/Volumes/2T01/winE/Starup/dudu`
 - 目标系统：`dudu`
 - 受限接口：`/vibe/agent/*`
-- 主要对象：模板、报道风格、订阅（含 RSS + 搜索 hybrid）、报道、域名规则
+- 主要对象：已有订阅参数查询/修改与批量 AI/频率配置、订阅创建（含 RSS + 搜索 hybrid）、报道风格、报道、域名规则；模板保留历史 CLI
 - 示例配置：`dudu-vibe-config/docs/high-quality-interviews-hybrid.opml`（18 个公开节目 feed）
-- 当前对齐状态：已按 2026-04-19 审计更新为最新 Vibe 契约；风格列表当前仅开放 `available` 视图，订阅级 `searchMode` 仍未在 Vibe 路由暴露
+- 当前对齐状态：`0.10.0`，按 2026-10-02 上游契约新增 `subscriptions list/show/update-many`；上游未开放订阅 GET，本机查询须显式授权并传 `--local-db-readonly`，按当前 Vibe Key 用户隔离。写入仍走受限 API；`searchMode` 等主站参数不可修改，全局模板写入在用户级 Vibe 返回 403
+- 已有订阅操作：[subscription-management.md](dudu-vibe-config/docs/subscription-management.md)
 
 ## 收录约定
 

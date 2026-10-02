@@ -15,13 +15,14 @@ from _flat_yaml import load_flat_yaml
 from _http_json import HttpResult, request_json
 from _redact import redact_secret
 from _vibe_env import VibeEnv, resolve_vibe_env
+from _subscriptions import LocalSubscriptionReader, SubscriptionError, merge_ai, public_subscription, verify_update
 
 
 DRY_RUN = False
 UNSET = object()
 
-SDK_CHOICES = ["codex", "codex_cli", "claude", "claude_code", "zhipu", "ark", "qwen", "deepseek"]
-REASONING_EFFORT_CHOICES = ["none", "low", "medium", "high", "xhigh"]
+SDK_CHOICES = ["codex", "codex_cli", "claude", "claude_code", "zhipu", "ark", "qwen", "deepseek", "kimi"]
+REASONING_EFFORT_CHOICES = ["none", "low", "medium", "high", "xhigh", "max"]
 THINKING_MODE_CHOICES = ["off", "thinking"]
 TIER_CHOICES = ["basic", "standard", "premium"]
 
@@ -58,6 +59,9 @@ def _config() -> dict[str, Any]:
         "default_subscription_ai_reasoning_effort": default_subscription_ai_reasoning_effort,
         "default_local_derived_runner": str(cfg.scalars.get("default_local_derived_runner", "auto")).strip() or "auto",
         "local_derived_timeout_seconds": int(cfg.scalars.get("local_derived_timeout_seconds", "180")),
+        "local_db_container": cfg.scalars.get("local_db_container", "dudu-postgres"),
+        "local_db_database": cfg.scalars.get("local_db_database", "dudu"),
+        "local_db_user": cfg.scalars.get("local_db_user", "dudu"),
     }
 
 
@@ -570,6 +574,8 @@ def _build_subscription_update_payload(
         payload["derivedPlan"] = derived_plan
     if refresh_derived is not UNSET:
         payload["refreshDerived"] = bool(refresh_derived)
+    elif ai_payload is not None and prompt is None:
+        payload["refreshDerived"] = False
 
     if not payload:
         raise SystemExit(
@@ -859,6 +865,8 @@ def cmd_subscriptions_update(
     derived_query: str | None,
     derived_plan: Any | None,
     refresh_derived: bool | object,
+    reader: LocalSubscriptionReader | None = None,
+    replace_ai: bool = False,
 ) -> int:
     topic_id = _require_uuid(topic_id, name="topic id")
     unsupported = _collect_unsupported_subscription_update_fields(
@@ -905,46 +913,96 @@ def cmd_subscriptions_update(
         derived_plan=derived_plan,
         refresh_derived=refresh_derived,
     )
-    with _auto_connection(vibe, enable=True, timeout_seconds=timeout_seconds) as conn_id:
-        route = f"/vibe/agent/subscriptions/{topic_id}"
-        res = _call(
-            "PATCH",
-            _url(vibe, route),
-            headers=_headers(vibe, connection_id=conn_id),
-            json_body=payload,
-            timeout_seconds=timeout_seconds,
-            retries=2,
+    if replace_ai and "ai" not in payload:
+        raise SubscriptionError("no_ai_override", "--replace-ai 需要 AI 参数。")
+    return _run_subscription_updates(vibe, timeout_seconds, [topic_id], payload, reader=reader, replace_ai=replace_ai)
+
+
+def _subscription_reader(args: argparse.Namespace, vibe: VibeEnv, timeout_seconds: int) -> LocalSubscriptionReader | None:
+    if not args.local_db_readonly:
+        return None
+    cfg = _config()
+    return LocalSubscriptionReader(
+        vibe, container=args.db_container or cfg["local_db_container"],
+        database=args.db_name or cfg["local_db_database"], user=args.db_user or cfg["local_db_user"],
+        timeout=timeout_seconds,
+    )
+
+
+def _require_subscription_reader(reader: LocalSubscriptionReader | None) -> LocalSubscriptionReader:
+    if reader is None:
+        raise SubscriptionError(
+            "unsupported_server_capability",
+            "当前 Vibe API 未开放订阅列表/详情读取。已获用户本机只读授权时可加 --local-db-readonly；远程操作请提供订阅 ID，AI 替换使用 --replace-ai。",
         )
+    return reader
+
+
+def _patch_subscription(vibe: VibeEnv, timeout_seconds: int, conn_id: str | None, topic_id: str, payload: dict[str, Any]) -> HttpResult:
+    route = f"/vibe/agent/subscriptions/{topic_id}"
+    res = _call("PATCH", _url(vibe, route), headers=_headers(vibe, connection_id=conn_id), json_body=payload, timeout_seconds=timeout_seconds, retries=0)
+    _terminate_guard(res)
+    if not DRY_RUN and res.status in (404, 405):
+        res = _call("PUT", _url(vibe, route), headers=_headers(vibe, connection_id=conn_id), json_body=payload, timeout_seconds=timeout_seconds, retries=0)
         _terminate_guard(res)
-        if not DRY_RUN and res.status in (404, 405):
-            put_res = _call(
-                "PUT",
-                _url(vibe, route),
-                headers=_headers(vibe, connection_id=conn_id),
-                json_body=payload,
-                timeout_seconds=timeout_seconds,
-                retries=2,
-            )
-            _terminate_guard(put_res)
-            if put_res.status not in (404, 405):
-                res = put_res
-        if not DRY_RUN and res.status in (404, 405):
-            _print_json(
-                {
-                    "error": "unsupported_server_capability",
-                    "capability": "subscriptions_update",
-                    "hint": (
-                        "Current dudu service does not expose /vibe/agent subscription update yet. "
-                        "The client used the latest topic/subscription field model, but refused unsafe recreate/delete fallback."
-                    ),
-                    "attempted_methods": ["PATCH", "PUT"],
-                    "route": route,
-                    **_result_payload(res),
-                }
-            )
-            return 2
-        _print_json(_result_payload(res))
-        return 0 if (DRY_RUN or res.status == 200) else 1
+    return res
+
+
+def _run_subscription_updates(
+    vibe: VibeEnv, timeout_seconds: int, topic_ids: list[str] | None, payload: dict[str, Any], *,
+    reader: LocalSubscriptionReader | None, replace_ai: bool,
+) -> int:
+    include_content = any(key in payload for key in ("prompt", "derivedQuery", "derivedPlan"))
+    if topic_ids is not None:
+        topic_ids = list(dict.fromkeys(_require_uuid(value, name="topic id") for value in topic_ids))
+    rows = reader.read(topic_ids=topic_ids, include_content=include_content) if reader else []
+    before = {row["topicId"]: row for row in rows}
+    if topic_ids is None:
+        _require_subscription_reader(reader)
+        topic_ids = list(before)
+    topic_ids = list(dict.fromkeys(_require_uuid(value, name="topic id") for value in topic_ids))
+    if reader and any(topic_id not in before for topic_id in topic_ids):
+        raise SubscriptionError("subscription_not_found", "指定 ID 不属于当前 Vibe Key 用户的订阅；未执行任何写入。")
+    # Prepare every payload before connecting: one invalid target must not cause a partial batch.
+    plans: list[tuple[str, dict[str, Any]]] = []
+    for topic_id in topic_ids:
+        body = dict(payload)
+        if "ai" in body:
+            if DRY_RUN and not reader and not replace_ai:
+                # Pure offline preview cannot resolve the retained fields.
+                body["ai"] = dict(body["ai"])
+            else:
+                body["ai"] = merge_ai(before.get(topic_id, {}).get("ai"), body["ai"], replace=replace_ai)
+        plans.append((topic_id, body))
+    if not plans:
+        _print_json({"success": True, "updated_count": 0, "verified": bool(reader) and not DRY_RUN, "results": []})
+        return 0
+    results: list[dict[str, Any]] = []
+    active_topic: str | None = None
+    try:
+        with _auto_connection(vibe, enable=True, timeout_seconds=timeout_seconds) as conn_id:
+            for topic_id, body in plans:
+                active_topic = topic_id
+                res = _patch_subscription(vibe, timeout_seconds, conn_id, topic_id, body)
+                if not DRY_RUN and (res.status != 200 or not isinstance(res.json, dict) or res.json.get("success") is not True):
+                    _print_json({"error": "unsupported_server_capability" if res.status in (404, 405) else "subscription_update_failed", "failed_topic_id": topic_id, "updated_count": len(results), "results": results, **_result_payload(res)})
+                    return 2 if res.status in (404, 405) else 1
+                receipt = {"topicId": topic_id, **_result_payload(res), "verified": False}
+                results.append(receipt)
+                if reader and not DRY_RUN:
+                    after = {row["topicId"]: row for row in reader.read(topic_ids=[topic_id], include_content=include_content)}
+                    receipt["verified"] = verify_update(before[topic_id], after.get(topic_id), body, res.json)
+                    if not receipt["verified"]:
+                        _print_json({"error": "subscription_verification_failed", "failed_topic_id": topic_id, "updated_count": len(results), "results": results})
+                        return 1
+    except TerminateRequested as error:
+        _print_json({"terminate_requested": True, "updated_count": len(results), "results": results, "reason": error.reason})
+        return 0
+    except (RuntimeError, SubscriptionError) as error:
+        _print_json({"error": error.code if isinstance(error, SubscriptionError) else "transport_error", "message": str(error), "failed_topic_id": active_topic, "updated_count": len(results), "results": results, "hint": "写请求不自动重试；请先读取当前配置确认是否已写入。"})
+        return 1
+    _print_json({**(results[0] if len(results) == 1 else {}), "success": True, "dry_run": DRY_RUN, "updated_count": 0 if DRY_RUN else len(results), "target_count": len(plans), "verified": bool(reader) and not DRY_RUN, "unresolved_ai_fields": DRY_RUN and not reader and not replace_ai and "ai" in payload, "results": results})
+    return 0
 
 
 def cmd_subscriptions_parse_prompt(
@@ -956,6 +1014,8 @@ def cmd_subscriptions_parse_prompt(
     model: str | None,
     reasoning_effort: str | None,
     thinking_mode: str | None,
+    reader: LocalSubscriptionReader | None = None,
+    replace_ai: bool = False,
 ) -> int:
     topic_id = _require_uuid(topic_id, name="topic id")
     body: dict[str, Any] = {}
@@ -965,7 +1025,16 @@ def cmd_subscriptions_parse_prompt(
         reasoning_effort=reasoning_effort,
         thinking_mode=thinking_mode,
     )
+    if replace_ai and ai_payload is None:
+        raise SubscriptionError("no_ai_override", "--replace-ai 需要 AI 参数。")
     if ai_payload is not None:
+        if reader:
+            row = next((row for row in reader.read(topic_ids=[topic_id]) if row["topicId"] == topic_id), None)
+            if row is None:
+                raise SubscriptionError("subscription_not_found", "指定 ID 不属于当前 Vibe Key 用户的订阅。")
+            ai_payload = merge_ai(row.get("ai"), ai_payload, replace=replace_ai)
+        elif not DRY_RUN or replace_ai:
+            ai_payload = merge_ai(None, ai_payload, replace=replace_ai)
         body["ai"] = ai_payload
     with _auto_connection(vibe, enable=True, timeout_seconds=timeout_seconds) as conn_id:
         res = _call(
@@ -1004,6 +1073,7 @@ def cmd_reports_generate_with_ai(
     model: str | None,
     reasoning_effort: str | None,
     thinking_mode: str | None,
+    idempotency_key: str | None = None,
 ) -> int:
     topic_id = _require_uuid(topic_id, name="topic id")
     body: dict[str, Any] = {}
@@ -1015,11 +1085,16 @@ def cmd_reports_generate_with_ai(
     )
     if ai_payload is not None:
         body["ai"] = ai_payload
+    if idempotency_key is not None and (not idempotency_key.strip() or len(idempotency_key) > 200 or any(ord(char) < 32 or ord(char) > 126 for char in idempotency_key)):
+        raise SubscriptionError("invalid_idempotency_key", "幂等键必须为 1～200 字符的可打印 ASCII 文本。")
     with _auto_connection(vibe, enable=True, timeout_seconds=timeout_seconds) as conn_id:
+        headers = _headers(vibe, connection_id=conn_id)
+        if idempotency_key is not None:
+            headers["idempotency-key"] = idempotency_key
         res = _call(
             "POST",
             _url(vibe, f"/vibe/agent/subscriptions/{topic_id}/reports/generate"),
-            headers=_headers(vibe, connection_id=conn_id),
+            headers=headers,
             json_body=body,
             timeout_seconds=timeout_seconds,
             retries=2,
@@ -1111,6 +1186,33 @@ def main(argv: list[str]) -> int:
 
     subs = sub.add_parser("subscriptions")
     subs_sub = subs.add_subparsers(dest="subs_cmd", required=True)
+    def add_read_options(command: argparse.ArgumentParser) -> None:
+        command.add_argument("--local-db-readonly", action="store_true", help="已获授权时，通过 Docker 只读查询本机数据库；仅限回环 URL，按 Vibe Key 用户隔离。")
+        command.add_argument("--db-container", default=None, help="数据库容器，默认来自 config.yaml。")
+        command.add_argument("--db-name", default=None, help="数据库名称，默认来自 config.yaml。")
+        command.add_argument("--db-user", default=None, help="数据库用户，默认来自 config.yaml。")
+
+    sl = subs_sub.add_parser("list", help="查询当前用户订阅；当前上游需要显式授权的本机只读入口。")
+    add_read_options(sl)
+    ss = subs_sub.add_parser("show", help="读取已有订阅的参数与 AI 配置。")
+    ss.add_argument("--topic-id", required=True)
+    ss.add_argument("--include-content", action="store_true", help="同时返回私有 prompt/derived 内容；勿保存到公共日志。")
+    add_read_options(ss)
+    sm = subs_sub.add_parser("update-many", help="批量更新现有订阅的 AI 或频率；首个失败或核验失败即停止。")
+    sm_targets = sm.add_mutually_exclusive_group(required=True)
+    sm_targets.add_argument("--all", action="store_true", help="当前 Vibe Key 用户的全部订阅，需要 --local-db-readonly。")
+    sm_targets.add_argument("--topic-id", action="append", help="可重复指定订阅 ID。")
+    sm.add_argument("--sdk", default=None, choices=SDK_CHOICES)
+    sm.add_argument("--model", default=None)
+    sm.add_argument("--reasoning-effort", default=None, choices=REASONING_EFFORT_CHOICES)
+    sm.add_argument("--thinking-mode", default=None, choices=THINKING_MODE_CHOICES)
+    sm.add_argument("--frequency", default=None)
+    sm.add_argument("--replace-ai", action="store_true", help="显式替换 AI 配置；必须提供 SDK/model，未提供字段使用服务端默认值。")
+    sm_refresh = sm.add_mutually_exclusive_group()
+    sm_refresh.add_argument("--refresh-derived", dest="refresh_derived", action="store_true")
+    sm_refresh.add_argument("--no-refresh-derived", dest="refresh_derived", action="store_false")
+    sm.set_defaults(refresh_derived=UNSET)
+    add_read_options(sm)
     sc = subs_sub.add_parser("create")
     sc.add_argument("--name", required=True)
     sc.add_argument("--prompt", required=True)
@@ -1137,6 +1239,8 @@ def main(argv: list[str]) -> int:
     sc.add_argument("--local-derived-effort", default=None, help="本地 derived 生成的 effort/reasoning 设置。")
     sc.add_argument("--local-derived-timeout", type=int, default=None, help="本地 derived 生成超时秒数。")
     su = subs_sub.add_parser("update")
+    add_read_options(su)
+    su.add_argument("--replace-ai", action="store_true", help="显式替换完整 AI；必须提供 --sdk/--model，未指定字段使用服务端默认值。")
     su.add_argument("--topic-id", required=True)
     su.add_argument("--name", default=None)
     su.add_argument("--prompt", default=None)
@@ -1167,6 +1271,8 @@ def main(argv: list[str]) -> int:
     su_refresh.add_argument("--no-refresh-derived", dest="refresh_derived", action="store_false", help="提示服务端本次跳过 derived_* 刷新。")
     su.set_defaults(refresh_derived=UNSET)
     sp = subs_sub.add_parser("parse-prompt")
+    add_read_options(sp)
+    sp.add_argument("--replace-ai", action="store_true", help="附带 AI 时显式替换；必须提供 --sdk 和 --model。")
     sp.add_argument("--topic-id", required=True)
     sp.add_argument("--sdk", default=None, choices=SDK_CHOICES)
     sp.add_argument("--model", default=None, help="Model override; empty string means use provider default model when supported.")
@@ -1183,6 +1289,7 @@ def main(argv: list[str]) -> int:
     rg.add_argument("--model", default=None, help="Model override; for CLI providers, empty string means use CLI default model.")
     rg.add_argument("--reasoning-effort", default=None, choices=REASONING_EFFORT_CHOICES)
     rg.add_argument("--thinking-mode", default=None, choices=THINKING_MODE_CHOICES)
+    rg.add_argument("--idempotency-key", default=None, help="同一生成请求的稳定幂等键，发送为 idempotency-key 请求头。")
     rr = reports_sub.add_parser("delete")
     rr.add_argument("--topic-id", required=True)
     rr.add_argument("--report-id", required=True)
@@ -1291,6 +1398,31 @@ def main(argv: list[str]) -> int:
             if args.styles_cmd == "delete":
                 return cmd_styles_delete(vibe, timeout_seconds, args.id)
         if args.cmd == "subscriptions":
+            if args.subs_cmd in ("list", "show"):
+                reader = _require_subscription_reader(_subscription_reader(args, vibe, timeout_seconds))
+                topic_id = _require_uuid(args.topic_id, name="topic id") if args.subs_cmd == "show" else None
+                rows = reader.read(topic_ids=[topic_id] if topic_id else None, include_content=bool(getattr(args, "include_content", False)))
+                if topic_id:
+                    row = next((row for row in rows if row["topicId"] == topic_id), None)
+                    if row is None:
+                        raise SubscriptionError("subscription_not_found", "指定 ID 不属于当前 Vibe Key 用户的订阅。")
+                    _print_json({"source": "local_database_readonly", "subscription": public_subscription(row)})
+                else:
+                    _print_json({"source": "local_database_readonly", "count": len(rows), "subscriptions": [public_subscription(row) for row in rows]})
+                return 0
+            if args.subs_cmd == "update-many":
+                payload = _build_subscription_update_payload(
+                    name=None, prompt=None, frequency=args.frequency, tier=None, style=None,
+                    sdk=args.sdk, model=args.model, reasoning_effort=args.reasoning_effort, thinking_mode=args.thinking_mode,
+                    generation_sdk=None, generation_model=None, generation_reasoning_effort=None, generation_thinking_mode=None,
+                    group_id=None, clear_generation_ai=False, derived_query=None, derived_plan=None, refresh_derived=args.refresh_derived,
+                )
+                reader = _subscription_reader(args, vibe, timeout_seconds)
+                if args.all:
+                    _require_subscription_reader(reader)
+                if args.replace_ai and "ai" not in payload:
+                    raise SubscriptionError("no_ai_override", "--replace-ai 需要 AI 参数。")
+                return _run_subscription_updates(vibe, timeout_seconds, None if args.all else args.topic_id, payload, reader=reader, replace_ai=args.replace_ai)
             if args.subs_cmd == "create":
                 derived_plan = _load_json_input(
                     inline_json=args.derived_plan_json,
@@ -1364,6 +1496,8 @@ def main(argv: list[str]) -> int:
                     derived_query=derived_query,
                     derived_plan=derived_plan,
                     refresh_derived=args.refresh_derived,
+                    reader=_subscription_reader(args, vibe, timeout_seconds),
+                    replace_ai=args.replace_ai,
                 )
             if args.subs_cmd == "parse-prompt":
                 return cmd_subscriptions_parse_prompt(
@@ -1374,6 +1508,8 @@ def main(argv: list[str]) -> int:
                     model=args.model,
                     reasoning_effort=args.reasoning_effort,
                     thinking_mode=args.thinking_mode,
+                    reader=_subscription_reader(args, vibe, timeout_seconds),
+                    replace_ai=args.replace_ai,
                 )
             if args.subs_cmd == "delete":
                 return cmd_subscriptions_delete(vibe, timeout_seconds, args.topic_id)
@@ -1387,12 +1523,16 @@ def main(argv: list[str]) -> int:
                     args.model,
                     args.reasoning_effort,
                     args.thinking_mode,
+                    args.idempotency_key,
                 )
             if args.reports_cmd == "delete":
                 return cmd_reports_delete(vibe, timeout_seconds, args.topic_id, args.report_id)
     except TerminateRequested as e:
         _print_json({"terminate_requested": True, "reason": e.reason, **_result_payload(e.res)})
         return 0
+    except SubscriptionError as e:
+        _print_json({"error": e.code, "message": str(e)})
+        return 2
     except RuntimeError as e:
         _print_transport_error(e)
         return 1
